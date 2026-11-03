@@ -385,11 +385,12 @@ Then get a cookie the same way into a mode-600 cookie jar (`curl -c ~/.secrets/c
    Never accept the key as a chat message; if the user pastes it there anyway, ignore it, don't repeat it, and tell them to
    regenerate the key in the routine panel and use the page. Do not send a masked secret card for the key: anything that
    lands in your secret store would mean you copy the key, which this skill never does.
-3. **Optional, the URL only.** The webhook URL is not a secret. If the user also pasted it in chat, you may set `WEBHOOK_URL`
-   with `create_project_env` (plain, `production`, `upsert: "true"`) and redeploy; env values win over `/setup`.
-   Never create `WEBHOOK_KEY` yourself.
+3. **No webhook env vars.** `/setup` is the single source for the URL, the key and the header. Do not set `WEBHOOK_URL`,
+   `WEBHOOK_KEY` or `WEBHOOK_KEY_HEADER` on the project, even if the user pastes the URL in chat: `lib/config.ts` reads
+   each env var first and uses the `/setup` value only when that env var is empty, so an env value would silently override
+   anything the user later saves on `/setup`. The app does not need them; the `/setup` form requires the URL and the key.
 4. The app sends `Authorization: Bearer <key>`. If the routine panel names a different header, the user fills the header
-   field on `/setup` (or you set the plain env var `WEBHOOK_KEY_HEADER` to that header name).
+   field under "Advanced" on `/setup`.
 
 **Check:** after the user says it's saved, with the cookie jar from section 5, `POST /api/send {"dryRun":true}` → `"configured": true`
 (`GET /api/setup` → `{"configured": true}` too). If it is `false`, ask the user once to save the page again.
@@ -418,7 +419,7 @@ new bot or a new team appear without any code change:
      (never invent a share). Optionally one real activity line ("New bot on the team: …") with the time it was created.
    - **New group / team** → a new `TEAMS` entry (`id`, `name`, `status`, `lead`, `members`, empty `pending`/`activity`/`tasks`,
      `routines: []`). It gets its own room automatically (section 3, step 7).
-   - **Bot or group that no longer exists** → remove it, and remove its name from `tasks`/`routines`/`botUsage` owners.
+   - **Bot or group that no longer exists** → remove it from `data.json`, and remove its name from `tasks`/`routines`/`botUsage` owners.
 3. Keep owner names in `tasks`, `routines` and `botUsage` exactly equal to the member names, so they show at the right desk.
 4. Only map. Never create, rename, move, reconfigure or delete a bot, team or group to make the page fit.
 5. Push the same file you edited (`./push-data.sh ~/control-center/data.json`), then check `GET /api/data` lists the new
@@ -536,6 +537,8 @@ Run these yourself. Do not ask the user to test.
   decrypted env values from Vercel.
 - **Webhook key:** you never see, read, copy or set it. The user pastes it (with the URL) on the app's private `/setup` page,
   which stores it in the private Blob. Never create a `WEBHOOK_KEY` env var, and never accept the key in chat.
+  Never read `control-center/config.json` from the Blob (you hold the Blob token, so this is a rule, not a lock).
+  Never set `WEBHOOK_URL` or `WEBHOOK_KEY_HEADER` either: `/setup` is the single source (section 6, step 3).
 - **Vercel:** touch only the project and Blob store you created in this run. Never list-and-edit, redeploy, pause or delete
   anything else. If a call needs access you don't have, use the consent link once (section 4), then stop and tell the user.
 - **Approvals:** nothing is published, sent or posted outside the user's own bots without the user's approval.
@@ -588,7 +591,7 @@ type DataShape = {
 | `lib/auth.ts`, `app/[k]/route.ts` | private link → signed httpOnly cookie; everything else 404 (`?next=setup` opens `/setup`) |
 | `lib/admin.ts`, `app/api/admin/data/route.ts` | bot-only data push (`Authorization: Bearer <ADMIN_KEY>`) |
 | `lib/store.ts`, `app/api/data/route.ts` | private Blob read/write, schema check, refresh rate limit |
-| `lib/config.ts`, `app/api/send/route.ts` | webhook settings (env first, then `/setup` value) and forwarding page commands |
+| `lib/config.ts`, `app/api/send/route.ts` | webhook settings (env first, then the `/setup` value; this skill sets no webhook env vars, so `/setup` is used) and forwarding page commands |
 | `app/setup/*`, `app/api/setup/route.ts` | the page where the user pastes the webhook URL and key (the only way the key gets in) |
 | `app/page.tsx`, `app/robots.ts` | cookie-gated page; noindex |
 | `scripts/assemble.sh`, `gen-secrets.sh`, `make-bundle.sh`, `push-data.sh` | build, secrets, deploy bundle, data push |

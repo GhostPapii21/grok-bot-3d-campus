@@ -42,8 +42,8 @@ The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-re
 
 ## Features
 
-- **3D campus** (three.js): one room per team (6 around the plaza, frozen teams in a side wing, and extra teams get
-  generated rooms with the camera re-framed), orbit/zoom, minimap, keyboard shortcuts (`1–9` rooms, `]`/`[` next/previous team,
+- **3D campus** (three.js): one room per team, 6 around the plaza and frozen teams in a side wing.
+  Extra teams get generated rooms, and the camera re-frames to fit them. Orbit/zoom, minimap, keyboard shortcuts (`1–9` rooms, `]`/`[` next/previous team,
   `/` search, `Esc` back, `?` help). SVG fallback when WebGL is missing.
 - **Team rooms**: walk in and look around. Lead and member bots at their desks, a task board
   (to do / in progress / done), a live activity screen, a goal gauge, a usage battery and a
