@@ -1,7 +1,7 @@
 # Grok Bot Control Center (demo)
 
-<!-- LAUNCH DAY: replace __OWNER__ (here and in skill/SKILL.md): sed -i 's/__OWNER__/<github-owner>/g' README.md skill/SKILL.md -->
-**REPO_URL = `https://github.com/__OWNER__/grok-bot-3d-campus`** · Live demo: https://grok-bot-3d-campus-demo.vercel.app
+<!-- LAUNCH DAY: replace sarbarshem (here and in skill/SKILL.md): sed -i 's/sarbarshem/<github-owner>/g' README.md skill/SKILL.md -->
+**REPO_URL = `https://github.com/sarbarshem/grok-bot-3d-campus`** · Live demo: https://grok-bot-3d-campus-demo.vercel.app
 
 > **Grok Bot:** if a user sent you this repo and asked you to build it, download the repo yourself and follow
 > [`skill/SKILL.md`](skill/SKILL.md) from the downloaded copy, starting with "Get the repo".
@@ -63,7 +63,7 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 
 ## Build your own
 
-Paste the repo link to your main Grok Bot and say: **"Build me this control center from this repo: https://github.com/__OWNER__/grok-bot-3d-campus"**
+Paste the repo link to your main Grok Bot and say: **"Build me this control center from this repo: https://github.com/sarbarshem/grok-bot-3d-campus"**
 
 Then approve the connections it asks for and paste the one webhook key into the secure box it sends you (it never sees the key).
 The bot downloads the repo and does the rest itself by following [`skill/SKILL.md`](skill/SKILL.md): it reads your teams' chats

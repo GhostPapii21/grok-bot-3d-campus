@@ -13,9 +13,9 @@ First do **Get the repo**. Then read the whole file once, including **Look and f
 Do not go to the next section until the check passes. If a check fails twice, stop and tell the user
 in your private chat what failed, in one or two sentences, and what you need from them.
 
-<!-- LAUNCH DAY: the only placeholder is __OWNER__ (in REPO_URL below and in the raw image links that use it).
-     Swap it in one line:  sed -i 's/__OWNER__/<github-owner>/g' skill/SKILL.md README.md -->
-**REPO_URL = `https://github.com/__OWNER__/grok-bot-3d-campus`**
+<!-- LAUNCH DAY: the only placeholder is sarbarshem (in REPO_URL below and in the raw image links that use it).
+     Swap it in one line:  sed -i 's/sarbarshem/<github-owner>/g' skill/SKILL.md README.md -->
+**REPO_URL = `https://github.com/sarbarshem/grok-bot-3d-campus`**
 
 The user gives you only that repo link. You download everything yourself (next section) and work only from the downloaded
 files. `<SRC>` below means `~/control-center/src`, the downloaded repo. Every `skill/reference/...` path in this file is inside it.
@@ -25,7 +25,7 @@ files. `<SRC>` below means `~/control-center/src`, the downloaded repo. Every `s
 ## Get the repo (do this first)
 
 ```bash
-REPO_URL=https://github.com/__OWNER__/grok-bot-3d-campus   # or the exact link the user gave you
+REPO_URL=https://github.com/sarbarshem/grok-bot-3d-campus   # or the exact link the user gave you
 SRC=~/control-center/src
 mkdir -p ~/control-center
 if [ -d "$SRC/.git" ]; then git -C "$SRC" pull --ff-only
@@ -67,24 +67,24 @@ Then look at those files and at the reference images below. They are also in the
 
 | Screenshot | What it shows |
 |---|---|
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_1440x900.png) `campus_home_1440x900.png` | Default campus view on desktop: 6 active rooms in two rows of 3 around the central clock-tower plaza, 3 frozen rooms in a narrow wing on the left, room name pills above each room, the "In progress" list top-left, "Waiting for your approval" list top-right (magenta border), the top HUD pill, team filter chips, minimap + map buttons bottom-left, LIVE feed bar bottom-centre. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_998x1024.png) `campus_home_998x1024.png` | Tall/square screen (Galaxy Fold open, tablet): the two lists stay at the top corners and are shorter, and the campus is fitted into the largest free area, here **below** them. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_390x844.png) `campus_home_390x844.png` | Phone / Fold cover screen: no side lists; two bottom tabs ("⏳ Awaiting approval", "⚙️ In progress") with the LIVE bar above them; the camera is closer, so the sides may crop. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/campus_lists_sheet_390x844.png) `campus_lists_sheet_390x844.png` | Phone: a bottom tab opened as a sheet (56% of the screen height) with the approval list and Approve / Reject / Ask buttons. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_1440x900.png) `room_closeup_1440x900.png` | After clicking a room (or pressing 1–9): the camera flies to that room on the campus, agents get name tags, and the room panel opens on the right (tabs Approve / Tasks / Team / Scheduled / Activity, "Enter the room" button). |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_998x1024.png) `room_closeup_998x1024.png` | The same on a tall screen. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_390x844.png) `room_closeup_390x844.png` | The same on a phone: the room panel is a bottom sheet. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_interior_1440x900.png) `room_interior_1440x900.png` | "Enter the room": the room interior in CSS 3D. Back wall: team sign, LIVE TV, window, kanban (To do / In progress / Done). Left wall: goal plaque and usage battery. Right wall: the "← Campus" door. Lead with crown at the centre desk with the approvals tray and its count badge, the routines board on a stand, the members at desks in a front row. Bottom: previous room / 5 wall tabs / next room. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_interior_998x1024.png) `room_interior_998x1024.png` | Interior on a tall screen (still the landscape room layout, centred). |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_interior_390x844.png) `room_interior_390x844.png` | Interior on a phone: the portrait room layout (deeper room, kanban above the TV and window, members in 2 columns, routines board in front). |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_1440x900.png) `room_wall_zoom_1440x900.png` | A wall tab clicked (here 📝 Tasks): the wall content opens as a large readable board over the room; "↩ Room" goes back. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_998x1024.png) `room_wall_zoom_998x1024.png` | The same on a tall screen. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_390x844.png) `room_wall_zoom_390x844.png` | The same on a phone. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/full_feed_1440x900.png) `full_feed_1440x900.png` | "Full feed" opened from the LIVE bar: all teams' activity, newest first. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/full_feed_998x1024.png) `full_feed_998x1024.png` | The same on a tall screen. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/sent_toast_1440x900.png) `sent_toast_1440x900.png` | Approve clicked, then "Send now": the item shows "Approved ✓", the count drops, and a green toast "Sent to the bot ✓" shows the exact message that goes to the bot. In the demo a simulation then plays the team's follow-up in the feed; in your build the real team does. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/sent_toast_998x1024.png) `sent_toast_998x1024.png` | The same on a tall screen. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/svg_fallback_1440x900.png) `svg_fallback_1440x900.png` | No WebGL: the same campus drawn by the built-in SVG engine (`IsoCampus`), with the same HUD. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_1440x900.png) `campus_home_1440x900.png` | Default campus view on desktop: 6 active rooms in two rows of 3 around the central clock-tower plaza, 3 frozen rooms in a narrow wing on the left, room name pills above each room, the "In progress" list top-left, "Waiting for your approval" list top-right (magenta border), the top HUD pill, team filter chips, minimap + map buttons bottom-left, LIVE feed bar bottom-centre. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_998x1024.png) `campus_home_998x1024.png` | Tall/square screen (Galaxy Fold open, tablet): the two lists stay at the top corners and are shorter, and the campus is fitted into the largest free area, here **below** them. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_390x844.png) `campus_home_390x844.png` | Phone / Fold cover screen: no side lists; two bottom tabs ("⏳ Awaiting approval", "⚙️ In progress") with the LIVE bar above them; the camera is closer, so the sides may crop. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_lists_sheet_390x844.png) `campus_lists_sheet_390x844.png` | Phone: a bottom tab opened as a sheet (56% of the screen height) with the approval list and Approve / Reject / Ask buttons. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_1440x900.png) `room_closeup_1440x900.png` | After clicking a room (or pressing 1–9): the camera flies to that room on the campus, agents get name tags, and the room panel opens on the right (tabs Approve / Tasks / Team / Scheduled / Activity, "Enter the room" button). |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_998x1024.png) `room_closeup_998x1024.png` | The same on a tall screen. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_390x844.png) `room_closeup_390x844.png` | The same on a phone: the room panel is a bottom sheet. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_interior_1440x900.png) `room_interior_1440x900.png` | "Enter the room": the room interior in CSS 3D. Back wall: team sign, LIVE TV, window, kanban (To do / In progress / Done). Left wall: goal plaque and usage battery. Right wall: the "← Campus" door. Lead with crown at the centre desk with the approvals tray and its count badge, the routines board on a stand, the members at desks in a front row. Bottom: previous room / 5 wall tabs / next room. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_interior_998x1024.png) `room_interior_998x1024.png` | Interior on a tall screen (still the landscape room layout, centred). |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_interior_390x844.png) `room_interior_390x844.png` | Interior on a phone: the portrait room layout (deeper room, kanban above the TV and window, members in 2 columns, routines board in front). |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_1440x900.png) `room_wall_zoom_1440x900.png` | A wall tab clicked (here 📝 Tasks): the wall content opens as a large readable board over the room; "↩ Room" goes back. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_998x1024.png) `room_wall_zoom_998x1024.png` | The same on a tall screen. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_390x844.png) `room_wall_zoom_390x844.png` | The same on a phone. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/full_feed_1440x900.png) `full_feed_1440x900.png` | "Full feed" opened from the LIVE bar: all teams' activity, newest first. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/full_feed_998x1024.png) `full_feed_998x1024.png` | The same on a tall screen. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/sent_toast_1440x900.png) `sent_toast_1440x900.png` | Approve clicked, then "Send now": the item shows "Approved ✓", the count drops, and a green toast "Sent to the bot ✓" shows the exact message that goes to the bot. In the demo a simulation then plays the team's follow-up in the feed; in your build the real team does. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/sent_toast_998x1024.png) `sent_toast_998x1024.png` | The same on a tall screen. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/svg_fallback_1440x900.png) `svg_fallback_1440x900.png` | No WebGL: the same campus drawn by the built-in SVG engine (`IsoCampus`), with the same HUD. |
 
 ### Visual spec (taken from the code; use it to check, not to rebuild)
 
