@@ -88,7 +88,9 @@ Then look at those files and at the reference images below. They are also in the
 
 ### UI states reference (match these exactly)
 
-Every interactive state of the demo, captured from the live demo on desktop (1440×900) and on a tall/square screen (998×1024; the open Galaxy Z Fold 5 is 884×1104 and uses the same tall-screen campus layout, but its room interior is the portrait layout, because the room switches to portrait when width < 0.95 × height; at 998×1024 the room stays landscape).
+Every interactive state of the demo, captured from the live demo on desktop (1440×900) and on a tall/square screen (998×1024).
+The open Galaxy Z Fold 5 is 884×1104 and uses the same tall-screen campus layout. Its room interior is the portrait layout, because the room switches to portrait when width < 0.95 × height.
+At 998×1024 the room stays landscape.
 The files are in the downloaded repo at `<SRC>/screenshots/states/<name>_1440x900.png` and `<name>_998x1024.png`; the images below link to the same files on GitHub.
 
 **Do this:** before you call the build done, open each of these images with Read, then put your own deployment in the same state (same trigger) and take a screenshot at both sizes.
@@ -495,6 +497,11 @@ Run these yourself. Do not ask the user to test.
    - desktop: "In progress" top-left, "Waiting for your approval" top-right with the magenta border, top HUD pill, chips, minimap bottom-left;
    - LIVE feed bar bottom-centre at the same fixed size; phone: bottom tabs instead of side lists;
    - room interior: splayed side walls, TV/window/kanban on the back wall, goal + battery left, door right, lead desk with tray, routines stand, wall tabs at the bottom.
+   - open Fold (884×1104): `shoot.cjs` does not shoot this size, so check it yourself. Open the private link in a browser window
+     sized 884×1104, take a screenshot of the campus and one of the inside of a room, and compare them with
+     `<SRC>/screenshots/demo_home_884x1104.png` and `<SRC>/screenshots/demo_inroom_884x1104.png`. The campus uses the tall-screen
+     layout (lists at the top corners, campus below them), and the room interior is the portrait layout (deeper room, kanban
+     above the TV and window, members in 2 columns), not the landscape room of the 998×1024 shots.
    Differences in team names, counts and texts are expected. Anything else (missing room, blank canvas, different layout or colours)
    means the UI was changed or the build is broken: re-run `assemble.sh` from a clean folder, redeploy, and check again.
    Delete `~/control-center/shots` after checking (it contains real data).
@@ -520,6 +527,7 @@ Run these yourself. Do not ask the user to test.
 - [ ] `/api/send {"dryRun":true}` → `configured: true`; the refresh test changed `UPDATED`.
 - [ ] Every team is covered (member of its group, or `coverage: "transcripts"`).
 - [ ] Every bot in the roster (section 1) is a lead or member in `data.json`, and every team has a room on the page.
+- [ ] The visual check in step 3 passed at 1440×900, 998×1024 and 390×844, plus the open Fold at 884×1104 (tall-screen campus, portrait room).
 - [ ] No secret in any tool argument, chat message, memory, git or page HTML.
 
 ---
