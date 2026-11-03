@@ -9,12 +9,110 @@ You are the user's **main** Grok Bot (the one that coordinates their other agent
 Run this skill from start to finish **yourself**. Do not hand the user a to-do list. The user's part is
 limited to the approvals listed in section 0. Everything else in this file is something you do.
 
-Read the whole file once, then execute sections 1 to 9 in order. Each section ends with a **Check**.
+Read the whole file once, including **Look and feel** below, then execute sections 1 to 9 in order. Each section ends with a **Check**.
 Do not go to the next section until the check passes. If a check fails twice, stop and tell the user
 in your private chat what failed, in one or two sentences, and what you need from them.
 
 `<SKILL_DIR>` below means the folder this file is in (it holds `reference/`). `<DEMO_DIR>` is its parent,
 the demo repo.
+
+---
+
+## Look and feel (must match the reference)
+
+The page you build must look **the same** as the public demo. Only the data is different.
+
+**Canonical reference: https://grok-bot-3d-campus-demo.vercel.app** (invented data, no login).
+Before you build, open it and take your own reference screenshots, so you know what "done" looks like:
+```bash
+cd <tmp dir> && npm i puppeteer-core >/dev/null && node <SKILL_DIR>/reference/scripts/shoot.cjs https://grok-bot-3d-campus-demo.vercel.app ~/control-center/ref-shots
+```
+Then look at those files and at the images below (Read shows them to you). If you only have this file without its folder,
+get the demo repo first; the screenshots are in `<SKILL_DIR>/reference/screenshots/`.
+
+### Rule: reuse the UI, don't redesign it
+- The UI is `<DEMO_DIR>/components/ControlCenter.tsx`, `components/Campus3D.tsx`, `components/Campus3DLazy.tsx`,
+  `lib/theme.ts`, `lib/tz.ts` and `app/layout.tsx`. `assemble.sh` (section 5) copies them **verbatim**. Do not edit,
+  restyle, "simplify", translate or regenerate them, and do not write a new UI from this description.
+- The only UI changes allowed are the two text swaps `assemble.sh` already does (demo toast text → "Sent to the bot ✓",
+  page title → "Control Center"). The time zone comes from `NEXT_PUBLIC_TIMEZONE`. Everything else that differs comes from `data.json`.
+- The spec below is for **checking** your result, not for rebuilding it.
+
+### Reference screenshots (live demo)
+
+| Screenshot | What it shows |
+|---|---|
+| ![](reference/screenshots/campus_home_1440x900.png) `campus_home_1440x900.png` | Default campus view on desktop: 6 active rooms in two rows of 3 around the central clock-tower plaza, 3 frozen rooms in a narrow wing on the left, room name pills above each room, the "In progress" list top-left, "Waiting for your approval" list top-right (magenta border), the top HUD pill, team filter chips, minimap + map buttons bottom-left, LIVE feed bar bottom-centre. |
+| ![](reference/screenshots/campus_home_998x1024.png) `campus_home_998x1024.png` | Tall/square screen (Galaxy Fold open, tablet): the two lists stay at the top corners and are shorter, and the campus is fitted into the largest free area, here **below** them. |
+| ![](reference/screenshots/campus_home_390x844.png) `campus_home_390x844.png` | Phone / Fold cover screen: no side lists; two bottom tabs ("⏳ Awaiting approval", "⚙️ In progress") with the LIVE bar above them; the camera is closer, so the sides may crop. |
+| ![](reference/screenshots/campus_lists_sheet_390x844.png) `campus_lists_sheet_390x844.png` | Phone: a bottom tab opened as a sheet (56% of the screen height) with the approval list and Approve / Reject / Ask buttons. |
+| ![](reference/screenshots/room_closeup_1440x900.png) `room_closeup_1440x900.png` | After clicking a room (or pressing 1–9): the camera flies to that room on the campus, agents get name tags, and the room panel opens on the right (tabs Approve / Tasks / Team / Scheduled / Activity, "Enter the room" button). |
+| ![](reference/screenshots/room_closeup_998x1024.png) `room_closeup_998x1024.png` | The same on a tall screen. |
+| ![](reference/screenshots/room_closeup_390x844.png) `room_closeup_390x844.png` | The same on a phone: the room panel is a bottom sheet. |
+| ![](reference/screenshots/room_interior_1440x900.png) `room_interior_1440x900.png` | "Enter the room": the room interior in CSS 3D. Back wall: team sign, LIVE TV, window, kanban (To do / In progress / Done). Left wall: goal plaque and usage battery. Right wall: the "← Campus" door. Lead with crown at the centre desk with the approvals tray and its count badge, the routines board on a stand, the members at desks in a front row. Bottom: previous room / 5 wall tabs / next room. |
+| ![](reference/screenshots/room_interior_998x1024.png) `room_interior_998x1024.png` | Interior on a tall screen (still the landscape room layout, centred). |
+| ![](reference/screenshots/room_interior_390x844.png) `room_interior_390x844.png` | Interior on a phone: the portrait room layout (deeper room, kanban above the TV and window, members in 2 columns, routines board in front). |
+| ![](reference/screenshots/room_wall_zoom_1440x900.png) `room_wall_zoom_1440x900.png` | A wall tab clicked (here 📝 Tasks): the wall content opens as a large readable board over the room; "↩ Room" goes back. |
+| ![](reference/screenshots/room_wall_zoom_998x1024.png) `room_wall_zoom_998x1024.png` | The same on a tall screen. |
+| ![](reference/screenshots/room_wall_zoom_390x844.png) `room_wall_zoom_390x844.png` | The same on a phone. |
+| ![](reference/screenshots/full_feed_1440x900.png) `full_feed_1440x900.png` | "Full feed" opened from the LIVE bar: all teams' activity, newest first. |
+| ![](reference/screenshots/full_feed_998x1024.png) `full_feed_998x1024.png` | The same on a tall screen. |
+| ![](reference/screenshots/sent_toast_1440x900.png) `sent_toast_1440x900.png` | Approve clicked, then "Send now": the item shows "Approved ✓", the count drops, and a green toast shows the exact message that goes to the bot (in your build it reads "Sent to the bot ✓"). |
+| ![](reference/screenshots/sent_toast_998x1024.png) `sent_toast_998x1024.png` | The same on a tall screen. |
+| ![](reference/screenshots/svg_fallback_1440x900.png) `svg_fallback_1440x900.png` | No WebGL: the same campus drawn by the built-in SVG engine (`IsoCampus`), with the same HUD. |
+
+### Visual spec (taken from the code; use it to check, not to rebuild)
+
+**Palette** (`lib/theme.ts`, dark only): page `#141414`, panel `#1e1e1e`, card `#202020`, control `#2c2c2e`,
+selected `#3b3b3d`, divider `#262626`; text `#ffffff` / `#9a9a9a` / `#6e6e6e`; accent magenta `#c22576`
+(text on dark `#ec5aa6`, soft `#3a1a2c`); success `#2ecc71`, warning `#f5a623`, danger `#ff4d5e`.
+Team/agent colours in order: `#2f8cff`, `#2ecc71`, `#ff8a1f`, `#ff2d9b`, `#8f5bff`, `#ff3b4f`.
+**Font:** `system-ui, -apple-system, "Segoe UI", Arial, "Noto Sans Hebrew", sans-serif`. The page is `dir="ltr"`.
+
+**Campus** (`Campus3D.tsx`, three.js):
+- 6 active slots, two rows of 3, around a central plaza with a clock tower (magenta roof, live clock faces, pulsing magenta rings).
+  3 frozen slots in a column on the left. Curved roads with moving dashes run from the plaza to each active room; small blobs walk them. Trees around.
+- Camera: perspective, FOV 34°. Default view looks at the campus straight from the front (azimuth 0), polar angle 0.6 rad
+  (about 55° down), fitted to the free screen area. Orbit limits: polar 0.2–1.28 rad, distance 3–55. Left drag pans,
+  right drag rotates, wheel zooms; buttons + − ⟲ ⟳ ⌂. Clicking a room flies the camera to it (polar 0.9).
+- Rooms: tiled floor, walls 1.05 high (frozen 0.8, grey floor) with a door gap in the front wall. The walls between the camera
+  and the room drop low (cutaway). Back wall: mini kanban and a LIVE TV. Shelf with a trophy, a plant, desks with glowing monitors.
+  Status lamp on the back-right corner: green active, pink partial, orange waiting for you, red alert, grey frozen.
+- Agents: glossy blobs (sphere, capsule or double sphere) in the 6 team colours, with eyes that blink. The lead is larger with a
+  gold crown and a magenta "!" when items wait for approval; frozen agents are faded and sleep (z z z).
+- Room name pills float above the walls: card background, 13 px bold, a status dot, a magenta pending-count badge, 🚨 on alerts, "✦ N new".
+- Lighting: hemisphere light plus a sun with soft shadows (no shadows on phones), a faint magenta fill light, ACES tone mapping, fog.
+
+**Room interior** (`Room3D` in `ControlCenter.tsx`, CSS 3D): the original 2D-style room built in real 3D.
+- The side walls splay 30° outward (120° to the back wall), hinged at the back corners.
+- A different element on every wall and corner: back wall = sign (team name + green dot), LIVE TV (rotates through the activity every
+  4.5 s), window, kanban (To do / In progress / Done); left wall = goal plaque (gauge, current/target, 🏆) and usage battery;
+  right wall = the "← Campus" door; right of the lead's desk = routines board on a stand ("Scheduled tasks"; in portrait it stands at the front); plants back-left and front-left.
+- Centre: the lead's desk with the approvals tray and count badge, a monitor, a hanging lamp and a rug; the members' desks in front (landscape: one row).
+- Landscape room 1080×420×900 px, pitch −23°; portrait (width < 0.95 × height) 640×560×1000 px, pitch −36°. Fly-in on entry,
+  drag to look around (±30° yaw), double-click resets.
+- Bottom bar: "← previous room", tabs ⏳ Approvals / 📝 Tasks / ⏰ Scheduled / 📺 Activity and goal / 🔋 Usage, "next room →". Top: "🚪 Exit to campus" and a team pill.
+
+**HUD** (`ControlCenter.tsx`):
+- Top centre pill (top 12 px): approvals count, bot tray, weekly usage battery and %, scheduled-tasks clock, "✦ N new", search,
+  ⟳ refresh with "Updated … · data from …", "?" for shortcuts. Team filter chips below it.
+- Two floating glass windows (90% card colour + 12 px blur): left "In progress", right "Waiting for your approval" (1.5 px magenta border).
+  Width: right = clamp(204, 21% of width on compact screens / 20% otherwise, 290) px; left = clamp(168, 18% / 17%, 250) px.
+  "Compact" means width < 1600 or height > 0.9 × width. Both can be minimised to a pill.
+- On tall screens (height > 0.9 × width) the lists are capped at 32% (left) and 36% (right) of the height. The default view fits the campus
+  between the lists only when that gap is at least 55% of the width; otherwise (or when it gives a bigger view) below them.
+  The lists drop to top 104 px when the gap between them would be < 460 px.
+- Room panel (after clicking a room): right side, width clamp(320, 30%, 420) px; a bottom sheet on phones.
+- Minimap (hidden on phones; closed by default when the height is < 700) above the map buttons, bottom-left.
+
+**Bottom LIVE feed:** fixed size. Width min(700 px, 100%), height 54 px (50 px on phones), radius 22, centred, 14 px from the
+bottom (70 px on phones, above the tabs). Red pulsing "LIVE", then team name, time and text clamped to 2 lines, rotating every 4.5 s, and a "Full feed" button.
+
+**Phones and Galaxy Fold:** width < 640 = phone layout (also the Fold cover screen): no side windows, two bottom tabs that open a 56%-height
+sheet, the room panel as a bottom sheet, the campus camera 1.3× closer. The open Fold (about 884×1104) and other square screens use
+the tall-screen rules above; the room interior switches to the portrait layout when width < 0.95 × height.
+
+**Fallback:** if WebGL is missing or the context is lost, the page swaps to the SVG engine (`IsoCampus`) with the same layout and HUD (see `svg_fallback_1440x900.png`).
 
 ---
 
@@ -156,7 +254,7 @@ never request decrypted values).
 ## 5. Build, secure and deploy the app (you do it)
 
 The UI is the demo repo's: Next.js (App Router) + **three.js** 3D campus, with an SVG fallback when WebGL is missing.
-`reference/` adds the private backend.
+`reference/` adds the private backend. Do not change the UI files (see **Look and feel**); only the data differs.
 
 1. **Assemble** (one command; it copies the demo, swaps in the private backend, installs `@vercel/blob`,
    and runs `tsc` and `next build`):
@@ -293,8 +391,20 @@ Run these yourself. Do not ask the user to test.
    wait.)
 2. **Command path test without side effects.** Do not press Approve on a real item. The refresh test already proves
    page → webhook → you → push. `POST /api/send {"dryRun":true}` → `configured: true` proves the command path is wired.
-3. **Visual check.** If headless Chrome is available, open the private link with a fresh profile, screenshot the campus at
-   1440×900 and 390×844, and confirm rooms render. Delete the screenshots after checking (they contain real data).
+3. **Visual check against the reference (required before sending the link).** Screenshot your own deployment:
+   ```bash
+   cd <tmp dir with puppeteer-core> && node <SKILL_DIR>/reference/scripts/shoot.cjs --private ~/control-center/shots
+   ```
+   It saves `campus_home`, `room_closeup`, `room_interior` and `room_wall_zoom` at 1440×900, 998×1024 and 390×844 (file names only are printed).
+   Look at each one next to the same-named file in `<SKILL_DIR>/reference/screenshots/` and confirm all of these:
+   - same dark palette and magenta accent, same fonts; nothing light-themed or restyled;
+   - campus: rooms around the clock-tower plaza, frozen wing on the left, name pills above rooms, same front camera angle;
+   - desktop: "In progress" top-left, "Waiting for your approval" top-right with the magenta border, top HUD pill, chips, minimap bottom-left;
+   - LIVE feed bar bottom-centre at the same fixed size; phone: bottom tabs instead of side lists;
+   - room interior: splayed side walls, TV/window/kanban on the back wall, goal + battery left, door right, lead desk with tray, routines stand, wall tabs at the bottom.
+   Differences in team names, counts and texts are expected. Anything else (missing room, blank canvas, different layout or colours)
+   means the UI was changed or the build is broken: re-run `assemble.sh` from a clean folder, redeploy, and check again.
+   Delete `~/control-center/shots` after checking (it contains real data).
 4. **Leak check.** `git -C ~/control-center/app grep -nE "(SESSION_SECRET|CONTROL_ACCESS_TOKEN|ADMIN_KEY|WEBHOOK_KEY)=."` finds
    nothing (if it's a repo); `curl -s -b <jar> $CC_URL/ | grep -c "$CONTROL_ACCESS_TOKEN"` prints 0.
 5. **Remember** with `UpdateMemory` (no secrets): project id and name, Vercel team, Blob store name, routine name, app folder,
@@ -386,3 +496,5 @@ type DataShape = {
 | `app/setup/*`, `app/api/setup/route.ts` | fallback page where the user pastes the webhook URL and key |
 | `app/page.tsx`, `app/robots.ts` | cookie-gated page; noindex |
 | `scripts/assemble.sh`, `gen-secrets.sh`, `make-bundle.sh`, `push-data.sh` | build, secrets, deploy bundle, data push |
+| `scripts/shoot.cjs` | headless screenshots of the demo or (`--private`) your deployment, for the visual check |
+| `screenshots/` | reference screenshots of the live demo (invented data) |
