@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { PALETTE } from "../lib/theme";
-import { roomGeo, agentsOf, W3, ctrlFor, qpt, PLAZA, TREES } from "./ControlCenter";
+import { roomGeo, agentsOf, W3, ctrlFor, qpt, PLAZA, TREES, campusGrow } from "./ControlCenter";
 
 const P = PALETTE;
 type Pick = { team: string; what?: string; member?: number };
@@ -346,13 +346,15 @@ export default function Campus3D(props: any) {
       const portrait = (zero ? Hh > W * 1.1 : fh > fw * 1.1);
       // default view (user-chosen): looking at the campus straight from the front, tilted ~55° down, on every viewport
       const az = 0, pol = 0.6;
-      const tx = -0.7, tz = 0.3;
+      // frame every room: the original campus box, grown by any generated rooms (extra teams); unchanged for the 6 + 3 layout
+      const gr = campusGrow(pr.current.teams, pr.current.pos);
+      const tx = -0.7 + (gr.x1 - gr.x0) / 2, tz = 0.3 + (gr.z1 - gr.z0) / 2;
       const target = new THREE.Vector3(tx, 0, tz);
       const at = (dist: number) => new THREE.Vector3(tx + dist * Math.sin(pol) * Math.sin(az), dist * Math.cos(pol), tz + dist * Math.sin(pol) * Math.cos(az));
       const cam = camera.clone(); cam.clearViewOffset(); cam.aspect = W / Hh; cam.updateProjectionMatrix();
-      const xs = [-11.6, 10.2];
+      const xs = [-11.6 - gr.x0, 10.2 + gr.x1];
       const corners: THREE.Vector3[] = [];
-      xs.forEach((x) => [-6.9, 7.3].forEach((z) => [0, 1.6].forEach((y) => corners.push(new THREE.Vector3(x, y, z)))));
+      xs.forEach((x) => [-6.9 - gr.z0, 7.3 + gr.z1].forEach((z) => [0, 1.6].forEach((y) => corners.push(new THREE.Vector3(x, y, z)))));
       const v = new THREE.Vector3();
       // 1) the original whole-screen fit
       let dist = 12;
@@ -571,7 +573,7 @@ export default function Campus3D(props: any) {
     raf = requestAnimationFrame(loop);
 
     api.current = {
-      rebuild: () => build(),
+      rebuild: () => { build(); if (!touched && !saved && !fly) jumpHome(); },
       focus: (id: string | null, was: string | null) => {
         if (id) { if (!was) saved = { pos: camera.position.clone(), target: controls.target.clone() }; const v = roomView(id); if (v) flyTo(v.pos, v.target); }
         else if (saved) { flyTo(saved.pos, saved.target); saved = null; }

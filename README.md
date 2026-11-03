@@ -26,7 +26,7 @@ approvals and numbers are all made up, and no button contacts anything.
 
 ### Every UI state
 
-All interactive states are in [`screenshots/states/`](screenshots/states/) (desktop 1440×900 and Galaxy Z Fold 998×1024). A few of them:
+All interactive states are in [`screenshots/states/`](screenshots/states/) (desktop 1440×900 and a tall/square 998×1024 screen; the open Galaxy Z Fold 5 is 884×1104 and uses the same layout). A few of them:
 
 | Battery → who uses credits | Room card before entering |
 |---|---|
@@ -42,8 +42,9 @@ The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-re
 
 ## Features
 
-- **3D campus** (three.js): one room per active team, a side wing for frozen teams, orbit/zoom, minimap,
-  keyboard shortcuts (`1–9` rooms, `/` search, `Esc` back, `?` help). SVG fallback when WebGL is missing.
+- **3D campus** (three.js): one room per team (6 around the plaza, frozen teams in a side wing, and extra teams get
+  generated rooms with the camera re-framed), orbit/zoom, minimap, keyboard shortcuts (`1–9` rooms, `]`/`[` next/previous team,
+  `/` search, `Esc` back, `?` help). SVG fallback when WebGL is missing.
 - **Team rooms**: walk in and look around. Lead and member bots at their desks, a task board
   (to do / in progress / done), a live activity screen, a goal gauge, a usage battery and a
   scheduled-tasks panel with live countdowns and failure alerts.
@@ -76,14 +77,16 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 | Access | open | private link `/<token>` → signed httpOnly cookie, everything else 404 |
 | Buttons | simulated in the browser: "sent", then the team's follow-up appears in the feed | `POST /api/send` → the bot's webhook routine → team leads |
 | Refresh | simulated: "request sent" → "the bot is reading the team chats" → new data | reload + webhook "refresh" (once per 5 min) + polling |
+| New bots / teams | fixed demo teams | each refresh re-reads every bot and group: new bots join their team's room, new teams get their own room |
 
 ## Build your own
 
 Paste the repo link to your main Grok Bot and say: **"Build me this control center from this repo: https://github.com/sarbarshem/grok-bot-3d-campus"**
 
-Then approve the connections it asks for and paste the one webhook key into the secure box it sends you (it never sees the key).
-The bot downloads the repo and does the rest itself by following [`skill/SKILL.md`](skill/SKILL.md): it reads your teams' chats
-quietly, deploys a private copy to your Vercel, wires the buttons back to itself, checks that it looks like the demo, and sends you your private link.
+Then approve the connections it asks for, and paste the routine's webhook URL and sender key on your app's private `/setup` page
+(the bot sends you that link; it never sees, reads or sets the key).
+The bot downloads the repo and does the rest itself by following [`skill/SKILL.md`](skill/SKILL.md): it maps every bot and team you
+already have (it never creates or changes them), reads your teams' chats quietly, deploys a private copy to your Vercel, wires the buttons back to itself, checks that it looks like the demo, and sends you your private link.
 
 ## Tech
 

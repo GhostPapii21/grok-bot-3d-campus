@@ -60,6 +60,35 @@ const ACTIVE_POS = [
   { x: 1960, y: 1120 }, { x: 1340, y: 1250 }, { x: 720, y: 1120 },
 ];
 const FROZEN_POS = [{ x: 210, y: 420 }, { x: 210, y: 750 }, { x: 210, y: 1080 }];
+// room spots: the 6 + 3 hand-placed spots first; a team beyond them gets a generated spot, so it always has its own room.
+// extra active rooms grow in columns of 3 to the right of the campus, extra frozen rooms in columns of 3 to the left.
+const roomSpot = (frozen: boolean, i: number): { x: number; y: number } => {
+  const base = frozen ? FROZEN_POS : ACTIVE_POS;
+  if (i < base.length) return base[i];
+  const k = i - base.length, col = Math.floor(k / 3), row = k % 3;
+  return frozen ? { x: 210 - 400 * (col + 1), y: 420 + 330 * row } : { x: 2620 + 620 * col, y: 300 + 450 * row };
+};
+const layoutRooms = (teams: { id: string; status: string }[]) => {
+  const pos: Record<string, { x: number; y: number }> = {};
+  let a = 0, f = 0;
+  teams.forEach((x) => { pos[x.id] = x.status === "frozen" ? roomSpot(true, f++) : roomSpot(false, a++); });
+  return pos;
+};
+// how far the generated rooms reach past the original campus box (3D units: x -11.6..10.2, z -6.6..7.2); 0 for the 6 + 3 layout,
+// so the default view only changes when there are extra rooms. phone: frozen rooms stay out of the fit (as before).
+const campusGrow = (teams: { id: string; status: string }[], pos: Record<string, { x: number; y: number }>, phone?: boolean) => {
+  const g = { x0: 0, x1: 0, z0: 0, z1: 0 };
+  let a = 0, f = 0;
+  teams.forEach((tm) => {
+    const fz = tm.status === "frozen"; const i = fz ? f++ : a++;
+    if (i < (fz ? FROZEN_POS : ACTIVE_POS).length || (phone && fz)) return;
+    const p = pos[tm.id]; if (!p) return;
+    const c = { x: p.x / 100 - 12, z: p.y / 100 - 7.5 }; const hw = (fz ? 3.3 : 5.3) / 2 + 0.6, hd = (fz ? 2.4 : 3.5) / 2 + 0.6;
+    g.x0 = Math.max(g.x0, -11.6 - (c.x - hw)); g.x1 = Math.max(g.x1, c.x + hw - 10.2);
+    g.z0 = Math.max(g.z0, -6.6 - (c.z - hd)); g.z1 = Math.max(g.z1, c.z + hd - 7.2);
+  });
+  return g;
+};
 const POD = { w: 440, h: 280 };
 const FPOD = { w: 280, h: 200 };
 const TREES = [
@@ -1667,8 +1696,14 @@ function IsoCampus(props: SceneProps) {
   }, []);
 
   const W = size.w, H = size.h;
-  useEffect(() => { if (!homed.current && size.w !== 1200) { homed.current = true; const hm = isoHome(size.w, size.h); setCam(hm); prev.current = hm; } }, [size.w, size.h]);
-  const HOME = isoHome(W, H);
+  const grow = campusGrow(teams, props.pos, W < 640);
+  const growKey = [grow.x0, grow.x1, grow.z0, grow.z1].map((n) => n.toFixed(2)).join(",");
+  const homeAt = (w: number, h: number): IsoCam => { const b = isoHome(w, h); return { ...b, x: b.x + (grow.x1 - grow.x0) / 2, z: b.z + (grow.z1 - grow.z0) / 2 }; };
+  useEffect(() => { if (!homed.current && size.w !== 1200) { homed.current = true; const hm = homeAt(size.w, size.h); setCam(hm); prev.current = hm; } }, [size.w, size.h]);
+  // a team was added beyond the original spots: re-frame the whole campus (only when not inside a room)
+  const lastGrow = useRef(growKey);
+  useEffect(() => { if (growKey === lastGrow.current) return; lastGrow.current = growKey; const hm = homeAt(size.w, size.h); prev.current = hm; if (!props.focus) setCam(hm); }, [growKey]);
+  const HOME = homeAt(W, H);
   // the free area the campus should fit in (between or below the HUD windows); pick the one that shows it biggest
   const boxes = props.fitBoxes && props.fitBoxes.length ? props.fitBoxes : [{ l: 0, r: 0, t: 0, b: 0 }];
   let fb = boxes[0];
@@ -1677,8 +1712,9 @@ function IsoCampus(props: SceneProps) {
     const cy = Math.cos(HOME.yaw), sy = Math.sin(HOME.yaw), sp = Math.sin(p), cp = Math.cos(p);
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     const phoneW = W < 640;
-    const xs = phoneW ? [-6.4, 9.8] : [-11.6, 10.2];
-    [[xs[0], -6.6], [xs[1], -6.6], [xs[1], 7.2], [xs[0], 7.2]].forEach(([x, z]) => [0, 1.3].forEach((yy) => {
+    const xs = phoneW ? [-6.4 - grow.x0, 9.8 + grow.x1] : [-11.6 - grow.x0, 10.2 + grow.x1];
+    const zs = [-6.6 - grow.z0, 7.2 + grow.z1];
+    [[xs[0], zs[0]], [xs[1], zs[0]], [xs[1], zs[1]], [xs[0], zs[1]]].forEach(([x, z]) => [0, 1.3].forEach((yy) => {
       const dx = x - HOME.x, dz = z - HOME.z; const rx = dx * cy - dz * sy, rz = dx * sy + dz * cy; const py = rz * sp - yy * cp;
       x0 = Math.min(x0, rx); x1 = Math.max(x1, rx); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
     }));
@@ -2179,9 +2215,12 @@ function MiniMap(props: { teams: Team[]; pos: Record<string, { x: number; y: num
   const th = useGrokTheme();
   const cats = th.dataviz.categorical;
   const v = props.view;
+  // the map covers every room (generated spots for extra teams included)
+  let x0 = -20, y0 = -20, x1 = 2420, y1 = 1520;
+  props.teams.forEach((tm) => { const p = props.pos[tm.id]; if (!p) return; const fz = tm.status === "frozen"; const w = fz ? 280 : 440, h = fz ? 200 : 280; x0 = Math.min(x0, p.x - w / 2 - 40); x1 = Math.max(x1, p.x + w / 2 + 40); y0 = Math.min(y0, p.y - h / 2 - 40); y1 = Math.max(y1, p.y + h / 2 + 40); });
   return (
-    <svg viewBox="-20 -20 2440 1540" width={176} height={112} style={{ display: "block" }}>
-      <rect x={-20} y={-20} width={2440} height={1540} rx={90} fill={th.bg.base} />
+    <svg viewBox={`${x0} ${y0} ${x1 - x0} ${y1 - y0}`} width={176} height={112} style={{ display: "block" }}>
+      <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} rx={90} fill={th.bg.base} />
       <circle cx={PLAZA.x} cy={PLAZA.y} r={150} fill={th.fill.secondary} />
       {props.teams.map((tm) => {
         const p = props.pos[tm.id]; if (!p) return null;
@@ -2746,9 +2785,7 @@ function ControlCenterInner() {
   const narrow = phone;
   const active = TEAMS.filter((x) => x.status !== "frozen");
   const frozen = TEAMS.filter((x) => x.status === "frozen");
-  const pos: Record<string, { x: number; y: number }> = {};
-  active.forEach((x, i) => { pos[x.id] = ACTIVE_POS[i % ACTIVE_POS.length]; });
-  frozen.forEach((x, j) => { pos[x.id] = FROZEN_POS[j % FROZEN_POS.length]; });
+  const pos = layoutRooms(TEAMS);
   const totalPending = TEAMS.reduce((a, x) => a + x.pending.length, 0);
   const decided = TEAMS.reduce((a, x) => a + x.pending.filter((p) => decisions[p.id]).length, 0);
   const feedAll = TEAMS.flatMap((tm) => tm.activity.map((a) => ({ ...a, team: tm }))).sort((a, b) => timeKey(b.time) - timeKey(a.time));
@@ -2946,6 +2983,7 @@ function ControlCenterInner() {
     if (k === "/") { e.preventDefault(); setSearch({ q: "", sel: 0 }); }
     else if (k === "?") setHelp(!help);
     else if (k >= "1" && k <= "9") { const tm = TEAMS[Number(k) - 1]; if (tm) enter(tm.id); }
+    else if (k === "]" || k === "[") roomStep(k === "]" ? 1 : -1);
     else if (k === "0" || k === "h" || k === "H") { if (room) exit(); else setCmd({ n: cmd.n + 1, kind: "home" }); }
     else if (k === "+" || k === "=") setCmd({ n: cmd.n + 1, kind: "in" });
     else if (k === "-" || k === "_") setCmd({ n: cmd.n + 1, kind: "out" });
@@ -3160,7 +3198,7 @@ function ControlCenterInner() {
       {help && (
         <div onClick={() => setHelp(false)} style={{ position: "absolute", top: 60, left: "50%", transform: "translateX(-50%)", width: "min(460px, calc(100% - 24px))", zIndex: 10, ...glass, borderRadius: 20, padding: "14px 18px" }}>
           <b style={{ fontSize: 15 }}>Keyboard shortcuts</b>
-          {[["/ or Ctrl+K", "Search"], ["1–9", "Open a team's room"], ["Esc", "Close / back to campus"], ["A / W", "Approvals window / In-progress window"], ["N", "What's new since your last visit"], ["M", "Bot tray"], ["F", "Full feed"], ["+ / −", "Zoom"], ["Q / E", "Rotate the camera"], ["T", "Tilt the camera"], ["H", "Back to the overview"], ["Enter", "Enter the room (from the room view)"], ["← →", "In a room: switch boards"], ["Drag in a room", "look around · double-click: normal view"], ["↑ ↓", "In a room: previous / next room"], ["Drag", "pan · right/Shift+drag: rotate · wheel: zoom"]].map(([k, d]) => (
+          {[["/ or Ctrl+K", "Search"], ["1–9", "Open a team's room"], ["] / [", "Next / previous team (all teams, also past 9)"], ["Esc", "Close / back to campus"], ["A / W", "Approvals window / In-progress window"], ["N", "What's new since your last visit"], ["M", "Bot tray"], ["F", "Full feed"], ["+ / −", "Zoom"], ["Q / E", "Rotate the camera"], ["T", "Tilt the camera"], ["H", "Back to the overview"], ["Enter", "Enter the room (from the room view)"], ["← →", "In a room: switch boards"], ["Drag in a room", "look around · double-click: normal view"], ["↑ ↓", "In a room: previous / next room"], ["Drag", "pan · right/Shift+drag: rotate · wheel: zoom"]].map(([k, d]) => (
             <div key={k} style={{ display: "flex", gap: 10, fontSize: 13, padding: "5px 0", borderBottom: `1px solid ${th.border.weak}` }}><b dir="ltr" style={{ minWidth: 92, color: th.text.accent }}>{k}</b><span>{d}</span></div>
           ))}
         </div>
@@ -3407,4 +3445,4 @@ export default function ControlCenter(props: { initial: DataShape; demo?: DemoAp
 }
 
 // shared with the WebGL scene
-export { roomGeo, agentsOf, W3, ctrlFor, qpt, PLAZA, TREES, hexMix };
+export { roomGeo, agentsOf, W3, ctrlFor, qpt, PLAZA, TREES, hexMix, campusGrow };

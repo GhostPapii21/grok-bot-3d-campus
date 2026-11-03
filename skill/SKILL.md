@@ -1,6 +1,6 @@
 ---
 name: Build and run a 3D control center for my bot teams
-description: Use when the user wants a private live web page (3D campus, one room per team) showing what all their Grok Bot teams and agents are doing, what waits for their approval, scheduled routines and usage, with buttons that send commands back to you. You, the user's MAIN Grok Bot, do every step yourself; the user only approves connections and pastes one key into a masked card.
+description: Use when the user wants a private live web page (3D campus, one room per team) showing what all their Grok Bot teams and agents are doing, what waits for their approval, scheduled routines and usage, with buttons that send commands back to you. You, the user's MAIN Grok Bot, do every step yourself; the user only approves connections and pastes the routine's webhook URL and key on the app's private /setup page (you never see the key).
 ---
 
 # Build and run a 3D control center for my bot teams
@@ -68,7 +68,7 @@ Then look at those files and at the reference images below. They are also in the
 | Screenshot | What it shows |
 |---|---|
 | ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_1440x900.png) `campus_home_1440x900.png` | Default campus view on desktop: 6 active rooms in two rows of 3 around the central clock-tower plaza, 3 frozen rooms in a narrow wing on the left, room name pills above each room, the "In progress" list top-left, "Waiting for your approval" list top-right (magenta border), the top HUD pill, team filter chips, minimap + map buttons bottom-left, LIVE feed bar bottom-centre. |
-| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_998x1024.png) `campus_home_998x1024.png` | Tall/square screen (Galaxy Fold open, tablet): the two lists stay at the top corners and are shorter, and the campus is fitted into the largest free area, here **below** them. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_998x1024.png) `campus_home_998x1024.png` | Tall/square screen (tablet; the open Galaxy Fold 5 is 884×1104 and follows the same rules): the two lists stay at the top corners and are shorter, and the campus is fitted into the largest free area, here **below** them. |
 | ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_390x844.png) `campus_home_390x844.png` | Phone / Fold cover screen: no side lists; two bottom tabs ("⏳ Awaiting approval", "⚙️ In progress") with the LIVE bar above them; the camera is closer, so the sides may crop. |
 | ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_lists_sheet_390x844.png) `campus_lists_sheet_390x844.png` | Phone: a bottom tab opened as a sheet (56% of the screen height) with the approval list and Approve / Reject / Ask buttons. |
 | ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_1440x900.png) `room_closeup_1440x900.png` | After clicking a room (or pressing 1–9): the camera flies to that room on the campus, agents get name tags, and the room panel opens on the right (tabs Approve / Tasks / Team / Scheduled / Activity, "Enter the room" button). |
@@ -88,14 +88,14 @@ Then look at those files and at the reference images below. They are also in the
 
 ### UI states reference (match these exactly)
 
-Every interactive state of the demo, captured from the live demo on desktop (1440×900) and on a Galaxy Z Fold 5 opened (998×1024).
+Every interactive state of the demo, captured from the live demo on desktop (1440×900) and on a tall/square screen (998×1024; the open Galaxy Z Fold 5 is 884×1104 and uses the same tall-screen layout).
 The files are in the downloaded repo at `<SRC>/screenshots/states/<name>_1440x900.png` and `<name>_998x1024.png`; the images below link to the same files on GitHub.
 
 **Do this:** before you call the build done, open each of these images with Read, then put your own deployment in the same state (same trigger) and take a screenshot at both sizes.
 Match layout, positions, colours, sizes, fonts, borders and behaviour (what opens, where, and how it closes with ✕ / Esc / a click outside) for every state.
 If any state looks or behaves differently, fix the build (data or `assemble.sh` step), never the UI files, until it matches.
 
-| # | State | Trigger | What it must show | Desktop 1440×900 | Fold 998×1024 |
+| # | State | Trigger | What it must show | Desktop 1440×900 | Tall/square 998×1024 |
 |---|---|---|---|---|---|
 | `01` | **Campus overview** | Page load | Default campus: rooms with name pills (open-approval badge, 🚨, ✦ new), "In progress" window top-left, "Waiting for your approval" window top-right (magenta border), top HUD pill (inbox count, bot tray, usage battery %, clock, ✦ new, search, ⟳ Updated…, ?), team filter chips, minimap + map buttons bottom-left, LIVE bar bottom-centre. | [![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/screenshots/states/01-campus-overview_1440x900.png)](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/screenshots/states/01-campus-overview_1440x900.png) | [![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/screenshots/states/01-campus-overview_998x1024.png)](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/screenshots/states/01-campus-overview_998x1024.png) |
 | `02` | **Room hover card (before entering)** | Mouse over a room's floor/walls on the campus | Floating dark card next to the pointer: team name + status, one-line "what they're working on", "⌨ N In progress", "⏳ N Approve" and "Click to enter →"; the hovered room gets a highlight ring. Nothing opens until you click. | [![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/screenshots/states/02-room-hover-tooltip_1440x900.png)](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/screenshots/states/02-room-hover-tooltip_1440x900.png) | [![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/screenshots/states/02-room-hover-tooltip_998x1024.png)](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/screenshots/states/02-room-hover-tooltip_998x1024.png) |
@@ -193,7 +193,7 @@ the tall-screen rules above; the room interior switches to the portrait layout w
 |---|---|---|---|
 | U1 | Approve the Vercel connector (connect card), and the team consent link if one appears | Section 4, only if Vercel isn't connected with access to create projects | Sign-in to a third-party account. Only the user can grant it. |
 | U2 | Approve the routine card, if one appears | Section 6 | Creating a routine may ask the user to confirm. That card is shown by the tool, not by you. |
-| U3 | Copy the webhook **URL** and the **sender key** from the routine panel, paste the URL in chat and the key into the masked secret card you send | Section 6 | The routine tool never returns the sender key to you, and only the user can open the routine panel. |
+| U3 | Copy the webhook **URL** and the **sender key** from the routine panel and paste both on the app's private `/setup` page (the link you send) | Section 6 | The routine tool never returns the sender key to you, only the user can open the routine panel, and you must never read, copy or set the key. |
 
 Everything else is yours: discovering the org, joining the chats, naming the project, creating it,
 storage, secrets, env vars, deploys, the test, and sending the link. **Do not ask the user to approve
@@ -201,8 +201,8 @@ a project name, a test, or anything else that is not in this table.**
 
 Rules that apply throughout (details in section 10):
 - Never message a team, lead or worker to collect data for the page. You read; you do not ask.
-- Never print a secret (tokens, keys, cookies, the private link) anywhere except the private link,
-  once, in your 1:1 chat with the user (section 9).
+- Never print a secret (tokens, keys, cookies, the private link) anywhere. The only exception is the private link, in your
+  1:1 chat with the user: once for the webhook setup (section 6) and once with the final message (section 9).
 - Create only new things. Never edit, redeploy or delete any existing Vercel project, store or routine
   that you did not create in this run.
 - Nothing is published, posted or sent to anyone outside the user's own bots without the user's approval.
@@ -217,7 +217,9 @@ Do not message anyone to do this.
 You work only with the teams, agents and groups the user already has. Never create, rename, delete or reconfigure any agent, team or group; this step only reads what exists so you know which room to draw for each team.
 
 1. **Agents.** Take every agent from your teammates list in your prompt. If you hold `ListAgents`, call it
-   too and merge. For each agent keep: `id`, `name`, `description`.
+   too and merge. For each agent keep: `id`, `name`, `description`. This full list of bots is the roster: build the
+   teams from it, not from group member lists alone. A group's participant list can lag behind (a bot added to a group
+   tonight may not be listed yet), so a bot that is missing from every group is placed by its description (step 4).
 2. **Groups (teams).** If you hold `ListGroups`, call it. Also collect every group you have taken a
    room turn in: a room turn starts with `[Group chat: "<name>" - with …]` and lists the participants.
    For each group keep: `id` (when a tool gives it), `name`, `participants[]`, and whether **you** are a member.
@@ -234,6 +236,7 @@ You work only with the teams, agents and groups the user already has. Never crea
    waiting on the user.
 
 **Check:** every agent from step 1 is in exactly one team, and every team has one lead.
+Section 7 repeats this roster sync on every full refresh, so new bots and new teams appear on the page by themselves.
 
 ---
 
@@ -282,8 +285,11 @@ Build one JSON document, `~/control-center/data.json`, in the schema in section 
    `reset`, `onDemandPct`, `period`. `topBots` = the top 5 bots. `byTeam` = the sum of each team's bots' shares.
    Set each team's `usage` to its share as a string (for example "18%") and `botUsage` per bot.
 6. `UPDATED` = now in the user's time zone, formatted like `3.11.2026, 14:59 (Europe/Berlin)`.
-7. Slots: the campus shows up to 6 non-frozen teams and up to 3 frozen teams. If there are more, keep the
-   ones with the most pending items and recent activity, and put the rest in the side wing as `frozen`.
+7. Rooms: every team in `TEAMS` gets its own room. The first 6 non-frozen teams take the 6 spots around the plaza and
+   the first 3 frozen teams the side wing; any team beyond that gets a generated room (extra active rooms in columns of 3
+   on the right, extra frozen rooms in columns of 3 on the left), and the camera and the minimap frame all of them.
+   Do not hide or re-status a team to save space. `TEAMS` order = room order (keys 1–9 open the first nine; `]` / `[` walk
+   through all of them).
 
 **Check:** `python3 -c` validation passes (the same checks as in `push-data.sh`), every `pending.id` is unique,
 and no secret or private link appears in the file (`grep -nE "(KEY|TOKEN|SECRET)=" data.json` finds nothing).
@@ -369,26 +375,24 @@ Then get a cookie the same way into a mode-600 cookie jar (`curl -c ~/.secrets/c
 
 1. **Create** the routine with `UpdateRoutine` (create): name "Control center commands", `trigger: { "type": "webhook" }`,
    and the prompt in section 8. If a confirm card appears, that is **U2**; end your turn and continue when it's saved.
-2. **Get the URL and key from the user (U3).** The create result does not include the sender key, and you never see it.
-   In your private chat send **one** short message, with the routine-panel link from that routine's line in
-   `<automation_status>`: "Last step: open this routine, copy the webhook URL and paste it here. Then paste the sender key in
-   the secure box below (I won't see it)." In the same turn send a `SendToUser` of type `secret-request`
-   (label "Control center webhook sender key", connector = the routine's folder slug, field `key`). End the turn.
-   The URL is not a secret and may be pasted in chat. Never accept the key as a chat message; if the user pastes it there anyway,
-   ignore it, don't repeat it, and tell them to use the secure box and to regenerate the key in the routine panel.
-3. **Set them on the project yourself.** After the user submits:
-   - write the URL to `~/.secrets/cc/WEBHOOK_URL` (no newline, mode 600);
-   - the key is in that connector's credential file in the box's secret store. Copy only that field's value, without printing it,
-     to `~/.secrets/cc/WEBHOOK_KEY` (mode 600, no newline);
-   - `create_project_env` for `WEBHOOK_URL` and `WEBHOOK_KEY` (`sensitive`, `production`, `upsert: "true"`, values as `$file:` references);
-   - redeploy: `create_deployment` with `deploymentId: <last READY id>`, `target: "production"`, so it picks up the new env vars.
-   **Fallback, if the key can't be copied from the secret store:** send the user `<private link>?next=setup` in your private chat.
-   That page (`/setup`, cookie-protected) has two fields; what they paste is saved in the private Blob and used by `/api/send`.
-   It replaces step 3 and needs no redeploy. You still never see the key.
-4. The app sends `Authorization: Bearer <key>`. If the routine panel names a different header, set `WEBHOOK_KEY_HEADER`
-   (plain env var) to that header name.
+2. **The user connects it on `/setup` (U3).** The create result does not include the sender key, and you never see,
+   read, copy or set it. In your private chat send **one** short message with the routine-panel link from that routine's line
+   in `<automation_status>` and `<private link>?next=setup` (build it from the files on the box; this is the first of the two
+   times the link is sent, see section 0): "Last step: open this routine, copy its webhook URL and sender key, then open
+   this page and paste both: <private link>?next=setup. I never see the key." End the turn.
+   That page (`/setup`, cookie-protected) has the URL, key and optional header fields; what the user saves is stored in the
+   private Blob and used by `/api/send`. No env var and no redeploy are needed.
+   Never accept the key as a chat message; if the user pastes it there anyway, ignore it, don't repeat it, and tell them to
+   regenerate the key in the routine panel and use the page. Do not send a masked secret card for the key: anything that
+   lands in your secret store would mean you copy the key, which this skill never does.
+3. **Optional, the URL only.** The webhook URL is not a secret. If the user also pasted it in chat, you may set `WEBHOOK_URL`
+   with `create_project_env` (plain, `production`, `upsert: "true"`) and redeploy; env values win over `/setup`.
+   Never create `WEBHOOK_KEY` yourself.
+4. The app sends `Authorization: Bearer <key>`. If the routine panel names a different header, the user fills the header
+   field on `/setup` (or you set the plain env var `WEBHOOK_KEY_HEADER` to that header name).
 
-**Check:** with the cookie jar from section 5, `POST /api/send {"dryRun":true}` → `"configured": true`.
+**Check:** after the user says it's saved, with the cookie jar from section 5, `POST /api/send {"dryRun":true}` → `"configured": true`
+(`GET /api/setup` → `{"configured": true}` too). If it is `false`, ask the user once to save the page again.
 
 ---
 
@@ -402,6 +406,24 @@ Then get a cookie the same way into a mode-600 cookie jar (`curl -c ~/.secrets/c
 3. End the turn silently (silence rule, section 2). If nothing relevant happened, do nothing.
 
 **Also update** when a lead replies to you 1:1 about a command from the page, and when one of your own routines fails.
+
+**Roster sync (every full refresh, and when a room turn shows a participant the data doesn't have).** This is what makes a
+new bot or a new team appear without any code change:
+1. Re-read the roster exactly as in section 1: every bot from your teammates list (plus `ListAgents` if you have it) and
+   every group. Do not rely on group participant lists alone; a bot that is in no group yet is placed by its description
+   ("reports to <lead>" → that lead's team).
+2. Compare with `data.json` (`lead.name` and `members[].name` of every team):
+   - **New bot in an existing team** → add `{ name, role }` to that team's `members` (a short name, the role from its
+     description). Routines: only the ones you can see for it, else none. Usage: none until `CheckSubscriptionUsage` lists it
+     (never invent a share). Optionally one real activity line ("New bot on the team: …") with the time it was created.
+   - **New group / team** → a new `TEAMS` entry (`id`, `name`, `status`, `lead`, `members`, empty `pending`/`activity`/`tasks`,
+     `routines: []`). It gets its own room automatically (section 3, step 7).
+   - **Bot or group that no longer exists** → remove it, and remove its name from `tasks`/`routines`/`botUsage` owners.
+3. Keep owner names in `tasks`, `routines` and `botUsage` exactly equal to the member names, so they show at the right desk.
+4. Only map. Never create, rename, move, reconfigure or delete a bot, team or group to make the page fit.
+5. Push the same file you edited (`./push-data.sh ~/control-center/data.json`), then check `GET /api/data` lists the new
+   member/team. Keep one source of truth: if you also keep a copy of the data elsewhere (a page, a note), update it from
+   this file in the same turn so the copies never drift.
 
 **Refresh requests from the page** (⟳ button) arrive through the webhook routine (section 8, case A). The page reloads
 `/api/data` immediately and then polls every 20 s for up to 6 minutes until `UPDATED` changes, so finish the push within a few minutes.
@@ -424,7 +446,8 @@ App folder: <~/control-center/app>. Data file: <~/control-center/data.json>. Tim
 Team leads (team name -> lead agent id): <one line per team from org.json>.
 
 A) text is exactly "Refresh the control center data":
-   Rebuild the data the way the control-center skill describes (room history, lead transcripts, routines, usage),
+   Rebuild the data the way the control-center skill describes (roster sync first: every bot and group, new bots into
+   their team's members, new teams as new entries; then room history, lead transcripts, routines, usage),
    set UPDATED, run ./push-data.sh <data file> in the app folder. Do not redeploy. Message no one.
 
 B) otherwise text starts "N request(s) from the control center:" followed by numbered lines. For each line:
@@ -479,7 +502,7 @@ Run these yourself. Do not ask the user to test.
 5. **Remember** with `UpdateMemory` (no secrets): project id and name, Vercel team, Blob store name, routine name, app folder,
    data file, "update silently on room turns, never post in rooms for the page".
 6. **Send the link.** Build `https://<domain>/<CONTROL_ACCESS_TOKEN>` from the files on the box. Send it in your **1:1 chat only**,
-   once, with this message (translate to the user's language):
+   once (this is the second and last time, after the setup link in section 6), with this message (translate to the user's language):
 
    > Your control center is live: <private link>
    > Bookmark it. It's the only way in (no password), and it works on your phone too. It stays signed in for 60 days.
@@ -495,12 +518,14 @@ Run these yourself. Do not ask the user to test.
 - [ ] `/api/admin/data` with a wrong key → 404; `push-data.sh` → 200.
 - [ ] `/api/send {"dryRun":true}` → `configured: true`; the refresh test changed `UPDATED`.
 - [ ] Every team is covered (member of its group, or `coverage: "transcripts"`).
+- [ ] Every bot in the roster (section 1) is a lead or member in `data.json`, and every team has a room on the page.
 - [ ] No secret in any tool argument, chat message, memory, git or page HTML.
 
 ---
 
 ## 10. Safety rules
 
+- **Org:** read-only. Map the bots and teams that exist; never create, rename, move or delete one for the page.
 - **Teams:** never message a team, lead or worker to get data for the page. The only setup message allowed is the one
   "please add me to the group" request in section 2. After setup you message leads only to carry out a command the user
   sent from the page (section 8).
@@ -508,7 +533,8 @@ Run these yourself. Do not ask the user to test.
 - **Secrets:** generated on the box into `~/.secrets/` (mode 600), passed to tools only as `$file:` references, never printed,
   never in chat (except the private link, once, in the 1:1 chat), never in memory, git, data or logs. Never request
   decrypted env values from Vercel.
-- **Webhook key:** you never see it. It goes from the user's masked secret card (or the `/setup` page) to the project.
+- **Webhook key:** you never see, read, copy or set it. The user pastes it (with the URL) on the app's private `/setup` page,
+  which stores it in the private Blob. Never create a `WEBHOOK_KEY` env var, and never accept the key in chat.
 - **Vercel:** touch only the project and Blob store you created in this run. Never list-and-edit, redeploy, pause or delete
   anything else. If a call needs access you don't have, use the consent link once (section 4), then stop and tell the user.
 - **Approvals:** nothing is published, sent or posted outside the user's own bots without the user's approval.
@@ -562,7 +588,7 @@ type DataShape = {
 | `lib/admin.ts`, `app/api/admin/data/route.ts` | bot-only data push (`Authorization: Bearer <ADMIN_KEY>`) |
 | `lib/store.ts`, `app/api/data/route.ts` | private Blob read/write, schema check, refresh rate limit |
 | `lib/config.ts`, `app/api/send/route.ts` | webhook settings (env first, then `/setup` value) and forwarding page commands |
-| `app/setup/*`, `app/api/setup/route.ts` | fallback page where the user pastes the webhook URL and key |
+| `app/setup/*`, `app/api/setup/route.ts` | the page where the user pastes the webhook URL and key (the only way the key gets in) |
 | `app/page.tsx`, `app/robots.ts` | cookie-gated page; noindex |
 | `scripts/assemble.sh`, `gen-secrets.sh`, `make-bundle.sh`, `push-data.sh` | build, secrets, deploy bundle, data push |
 | `scripts/shoot.cjs` | headless screenshots of the demo or (`--private`) your deployment, for the visual check |
