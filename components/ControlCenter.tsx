@@ -69,7 +69,10 @@ const TREES = [
 ];
 
 // ---- data refresh: the web app fills RF (instant re-read of the latest data); on the canvas the button just re-reads the clock ----
-type RefreshApi = { busy: boolean; at: number; result: "" | "new" | "same" | "error"; reqAt: number; polling: boolean; refresh: () => void };
+type RefreshApi = { busy: boolean; at: number; result: "" | "new" | "same" | "error"; reqAt: number; polling: boolean; refresh: () => void; note?: string };
+// demo only (components/DemoApp.tsx): a client-side simulation of the bot; null in the real app
+type DemoApi = { snapshot: () => DataShape; send: (items: string[]) => void; refreshRound: () => void; subscribe: (fn: () => void) => () => void };
+let DEMO: DemoApi | null = null;
 // "3.11.2026, 08:06 (…)" → "08:06" today, or "2.11 08:06" for an older day
 const dataStamp = (u: string) => {
   const m = u.match(/(\d{1,2})\.(\d{1,2})\.(\d{4}),\s*(\d{1,2}:\d{2})/);
@@ -2747,7 +2750,7 @@ function ControlCenterInner() {
   active.forEach((x, i) => { pos[x.id] = ACTIVE_POS[i % ACTIVE_POS.length]; });
   frozen.forEach((x, j) => { pos[x.id] = FROZEN_POS[j % FROZEN_POS.length]; });
   const totalPending = TEAMS.reduce((a, x) => a + x.pending.length, 0);
-  const decided = Object.keys(decisions).length;
+  const decided = TEAMS.reduce((a, x) => a + x.pending.filter((p) => decisions[p.id]).length, 0);
   const feedAll = TEAMS.flatMap((tm) => tm.activity.map((a) => ({ ...a, team: tm }))).sort((a, b) => timeKey(b.time) - timeKey(a.time));
   const feed = filter ? feedAll.filter((a) => a.team.id === filter) : feedAll;
   const tick = feed.length ? feed[Math.floor(t / 4.5) % feed.length] : null;
@@ -2822,6 +2825,15 @@ function ControlCenterInner() {
     if (wait > 0) { setToast({ msg: `You can send again in ${Math.ceil(wait / 1000)} seconds`, ok: true, t0: t, kind: "wait" }); return; }
     lastSend.current = Date.now();
     setSending(true);
+    if (DEMO) {
+      // demo: nothing leaves the browser; the simulation plays the team's follow-up
+      await new Promise((r) => setTimeout(r, 650));
+      DEMO.send(items);
+      setQueue((q) => q.filter((x) => !items.includes(x)));
+      setToast({ msg: fmt(items), ok: true, t0: t, kind: "sent" });
+      setSending(false);
+      return;
+    }
     let err = "";
     try {
       const r = await fetch("/api/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items }) });
@@ -3052,7 +3064,7 @@ function ControlCenterInner() {
           const res = rf && !busyNow && rf.at && Date.now() - rf.at < (rf.result === "new" ? 8000 : 4000) ? rf.result : "";
           const coolMs = rf && rf.reqAt ? 5 * 60000 - (Date.now() - rf.reqAt) : 0;
           const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
-          const lbl = busyNow ? "Refreshing…" : res === "new" ? "✓ New data loaded" : coolMs > 0 ? `Refresh request sent${rf && rf.polling ? " · waiting for data" : ""} · again in ${mmss(coolMs)}` : res === "same" ? "✓ No new data" : res === "error" ? "Loading failed" : lastAt ? `Updated ${ilTime(lastAt)}` : "Refresh";
+          const lbl = busyNow ? "Refreshing…" : rf && rf.note ? rf.note : res === "new" ? "✓ New data loaded" : coolMs > 0 ? `Refresh request sent${rf && rf.polling ? " · waiting for data" : ""} · again in ${mmss(coolMs)}` : res === "same" ? "✓ No new data" : res === "error" ? "Loading failed" : lastAt ? `Updated ${ilTime(lastAt)}` : "Refresh";
           const tip = rf ? "Refresh: reloads the saved data right away and asks the bot to update it from the team chats (at most once every 5 minutes)" : `Refresh: reloads the view (${UPDATED})`;
           return (
             <button onClick={() => (rf ? rf.refresh() : setRfLocal(Date.now()))} title={tip} aria-label="Refresh data" style={{ display: "flex", alignItems: "center", gap: 5, background: spin ? th.fill.secondary : "none", border: "none", borderRadius: 999, padding: spin ? "2px 8px" : 0, cursor: "pointer", font: "inherit", fontSize: 12, color: spin ? th.text.primary : th.text.tertiary, whiteSpace: "nowrap" }}>
@@ -3267,8 +3279,9 @@ function ControlCenterInner() {
       {/* toast */}
       {toastVisible && toast && (
         <div style={{ position: "fixed", bottom: 76, left: "50%", transform: "translateX(-50%)", zIndex: 9, width: "max-content", maxWidth: "min(560px, 92vw)", background: th.bg.elevated, color: th.text.primary, border: `1px solid ${toast.kind === "sent" ? th.text.success : toast.kind === "failed" ? th.text.danger : th.border.default}`, borderRadius: 20, padding: "10px 16px", boxShadow: "0 10px 30px rgba(0,0,0,.25)", fontSize: 14, lineHeight: "20px" }} dir="ltr">
-          <div style={{ fontWeight: 700, marginBottom: 2, color: toast.kind === "sent" ? th.text.success : toast.kind === "failed" ? th.text.danger : th.text.primary }}>{toast.kind === "queued" ? "Added to the bot tray" : toast.kind === "sent" ? "Demo mode ✓ — in the real app this goes to your main bot" : toast.kind === "wait" ? "One moment…" : toast.kind === "failed" ? `Sending failed${toast.err ? ` (${toast.err})` : ""}. ${toast.ok ? "Message copied — paste it to the bot:" : "Copy the message and paste it to the bot:"}` : toast.ok ? "Copied — paste it to the bot" : "Copy the message and paste it in your chat with the bot:"}</div>
+          <div style={{ fontWeight: 700, marginBottom: 2, color: toast.kind === "sent" ? th.text.success : toast.kind === "failed" ? th.text.danger : th.text.primary }}>{toast.kind === "queued" ? "Added to the bot tray" : toast.kind === "sent" ? "Sent to the bot ✓" : toast.kind === "wait" ? "One moment…" : toast.kind === "failed" ? `Sending failed${toast.err ? ` (${toast.err})` : ""}. ${toast.ok ? "Message copied — paste it to the bot:" : "Copy the message and paste it to the bot:"}` : toast.ok ? "Copied — paste it to the bot" : "Copy the message and paste it in your chat with the bot:"}</div>
           <div style={{ userSelect: "all", opacity: 0.9, whiteSpace: "pre-line", maxHeight: 140, overflowY: "auto" }}>{toast.msg}</div>
+          {toast.kind === "sent" && DEMO && <div style={{ marginTop: 4, fontSize: 12.5, color: th.text.secondary }}>Watch the feed: the team picks it up in a few seconds.</div>}
           {toast.kind === "queued" && (
             <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
               <button onClick={() => postItems([toast.msg])} disabled={sending} style={{ font: "inherit", fontSize: 13, fontWeight: 700, padding: "5px 12px", borderRadius: 999, border: "none", background: th.fill.accent, color: th.text.onColor, cursor: "pointer" }}>{sending ? "Sending…" : "📨 Send now"}</button>
@@ -3284,8 +3297,12 @@ function ControlCenterInner() {
 }
 
 // ---------- app wrapper: live data from the server ----------
-export default function ControlCenter(props: { initial: DataShape }) {
-  const [data, setData] = useState<DataShape>(props.initial);
+export default function ControlCenter(props: { initial: DataShape; demo?: DemoApi }) {
+  const demo = props.demo || null;
+  const [data, setData] = useState<DataShape>(() => (demo ? demo.snapshot() : props.initial));
+  // render in the browser only: times, countdowns and the time zone depend on the viewer's clock (avoids hydration mismatches)
+  const [mounted, setMounted] = useState(false);
+  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [at, setAt] = useState(0);
   const [result, setResult] = useState<"" | "new" | "same" | "error">("");
@@ -3296,6 +3313,7 @@ export default function ControlCenter(props: { initial: DataShape }) {
   const cur = useRef(JSON.stringify(props.initial));
   // fetch the latest data from the server (Blob)
   const load = async (): Promise<"new" | "same" | "error"> => {
+    if (demo) { const j = demo.snapshot(); const txt = JSON.stringify(j); const changed = txt !== cur.current; cur.current = txt; setData(j); setAt(Date.now()); return changed ? "new" : "same"; }
     try {
       const r = await fetch("/api/data?ts=" + Date.now(), { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
       if (r.status === 401) { return "error"; }
@@ -3312,7 +3330,14 @@ export default function ControlCenter(props: { initial: DataShape }) {
     return "error";
   };
   useEffect(() => {
+    setMounted(true);
     setAt(Date.now());
+    if (demo) {
+      setData(demo.snapshot());
+      const off = demo.subscribe(() => { const j = demo.snapshot(); cur.current = JSON.stringify(j); setData(j); });
+      const id = setInterval(load, 60000);
+      return () => { off(); clearInterval(id); };
+    }
     try { const v = Number(localStorage.getItem("ccRefreshReq") || 0); if (v > Date.now() - 5 * 60000) setReqAt(v); } catch (e) {}
     // normal background polling: every 60 seconds and whenever the tab comes back
     const id = setInterval(load, 60000);
@@ -3322,7 +3347,7 @@ export default function ControlCenter(props: { initial: DataShape }) {
   }, []);
   // after a refresh request: poll every 20 seconds for up to 6 minutes, stop when the data's own timestamp changes
   useEffect(() => {
-    if (!pollUntil) return;
+    if (!pollUntil || demo) return;
     const id = setInterval(async () => {
       try {
         const r = await fetch("/api/data?ts=" + Date.now(), { cache: "no-store" });
@@ -3342,6 +3367,21 @@ export default function ControlCenter(props: { initial: DataShape }) {
   // the ⟳ button: (1) re-read the latest data right away; (2) at most once per 5 minutes, ask the main bot to refresh it from the team chats
   const refresh = async () => {
     if (busyRef.current) return;
+    if (demo) {
+      // demo: the same states as the real flow (request sent -> the bot reads the chats -> new data), all simulated
+      if (pollUntil) return;
+      busyRef.current = true; setBusy(true);
+      const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      await pause(700); await load(); setAt(Date.now());
+      busyRef.current = false; setBusy(false);
+      setReqAt(Date.now()); setPollUntil(Date.now() + 6 * 60000);
+      await pause(2200); setNote("The bot is reading the team chats…");
+      await pause(3600); setNote("Updating the page…");
+      await pause(1400);
+      demo.refreshRound(); await load(); setAt(Date.now());
+      setNote(""); setPollUntil(0); setReqAt(0); setResult("new");
+      return;
+    }
     busyRef.current = true; setBusy(true);
     const t0 = Date.now();
     const res = await load();
@@ -3360,7 +3400,9 @@ export default function ControlCenter(props: { initial: DataShape }) {
     busyRef.current = false; setBusy(false);
   };
   UPDATED = data.UPDATED; USAGE = data.USAGE; TEAMS = data.TEAMS;
-  RF = { busy, at, result, reqAt, polling: pollUntil > 0, refresh };
+  RF = { busy, at, result, reqAt, polling: pollUntil > 0, refresh, note };
+  DEMO = demo;
+  if (!mounted) return <div style={{ height: "100dvh", background: "#141414" }} />;
   return <ControlCenterInner />;
 }
 

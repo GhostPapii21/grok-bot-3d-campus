@@ -1,8 +1,5 @@
-import ControlCenter from "../components/ControlCenter";
-import { demoData } from "../lib/demo-data";
-export const dynamic = "force-dynamic";
-
-// Demo: no login, no private link. Everything shown is invented example data.
+import DemoApp from "../components/DemoApp";
+// Demo: no login, no private link. Everything shown is invented example data, and every button is simulated in the browser.
 export default function Page() {
-  return <ControlCenter initial={demoData() as any} />;
+  return <DemoApp />;
 }
