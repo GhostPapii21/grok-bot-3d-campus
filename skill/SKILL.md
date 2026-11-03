@@ -47,6 +47,8 @@ Rules that apply throughout (details in section 10):
 Build `~/control-center/org.json` (not secret, not committed anywhere) from what you already have.
 Do not message anyone to do this.
 
+You work only with the teams, agents and groups the user already has. Never create, rename, delete or reconfigure any agent, team or group; this step only reads what exists so you know which room to draw for each team.
+
 1. **Agents.** Take every agent from your teammates list in your prompt. If you hold `ListAgents`, call it
    too and merge. For each agent keep: `id`, `name`, `description`.
 2. **Groups (teams).** If you hold `ListGroups`, call it. Also collect every group you have taken a
