@@ -75,4 +75,4 @@ Next.js 16, React 19, three.js 0.187. No backend services in the demo.
 
 ## License
 
-Not chosen yet. Until a LICENSE file is added, all rights are reserved.
+MIT. Free to use, copy and modify; see [LICENSE](LICENSE).

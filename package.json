@@ -1,5 +1,6 @@
 {
   "name": "grokbot-control-center-demo",
+  "license": "MIT",
   "private": true,
   "version": "1.0.0",
   "scripts": {
