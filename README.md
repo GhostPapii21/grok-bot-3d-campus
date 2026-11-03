@@ -26,7 +26,7 @@ approvals and numbers are all made up, and no button contacts anything.
 
 ### Every UI state
 
-All interactive states are in [`screenshots/states/`](screenshots/states/) (desktop 1440×900 and a tall/square 998×1024 screen; the open Galaxy Z Fold 5 is 884×1104 and uses the same layout). A few of them:
+All interactive states are in [`screenshots/states/`](screenshots/states/) (desktop 1440×900 and a tall/square 998×1024 screen; the open Galaxy Z Fold 5 is 884×1104: its campus view follows the same tall-screen rules, but inside a room it switches to the portrait room layout, see `screenshots/demo_inroom_884x1104.png`). A few of them:
 
 | Battery → who uses credits | Room card before entering |
 |---|---|

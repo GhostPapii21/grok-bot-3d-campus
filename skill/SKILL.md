@@ -68,7 +68,7 @@ Then look at those files and at the reference images below. They are also in the
 | Screenshot | What it shows |
 |---|---|
 | ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_1440x900.png) `campus_home_1440x900.png` | Default campus view on desktop: 6 active rooms in two rows of 3 around the central clock-tower plaza, 3 frozen rooms in a narrow wing on the left, room name pills above each room, the "In progress" list top-left, "Waiting for your approval" list top-right (magenta border), the top HUD pill, team filter chips, minimap + map buttons bottom-left, LIVE feed bar bottom-centre. |
-| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_998x1024.png) `campus_home_998x1024.png` | Tall/square screen (tablet; the open Galaxy Fold 5 is 884×1104 and follows the same rules): the two lists stay at the top corners and are shorter, and the campus is fitted into the largest free area, here **below** them. |
+| ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_998x1024.png) `campus_home_998x1024.png` | Tall/square screen (tablet; the open Galaxy Fold 5 is 884×1104 and its campus view follows the same rules): the two lists stay at the top corners and are shorter, and the campus is fitted into the largest free area, here **below** them. |
 | ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_390x844.png) `campus_home_390x844.png` | Phone / Fold cover screen: no side lists; two bottom tabs ("⏳ Awaiting approval", "⚙️ In progress") with the LIVE bar above them; the camera is closer, so the sides may crop. |
 | ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/campus_lists_sheet_390x844.png) `campus_lists_sheet_390x844.png` | Phone: a bottom tab opened as a sheet (56% of the screen height) with the approval list and Approve / Reject / Ask buttons. |
 | ![](https://raw.githubusercontent.com/sarbarshem/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_1440x900.png) `room_closeup_1440x900.png` | After clicking a room (or pressing 1–9): the camera flies to that room on the campus, agents get name tags, and the room panel opens on the right (tabs Approve / Tasks / Team / Scheduled / Activity, "Enter the room" button). |
@@ -88,7 +88,7 @@ Then look at those files and at the reference images below. They are also in the
 
 ### UI states reference (match these exactly)
 
-Every interactive state of the demo, captured from the live demo on desktop (1440×900) and on a tall/square screen (998×1024; the open Galaxy Z Fold 5 is 884×1104 and uses the same tall-screen layout).
+Every interactive state of the demo, captured from the live demo on desktop (1440×900) and on a tall/square screen (998×1024; the open Galaxy Z Fold 5 is 884×1104 and uses the same tall-screen campus layout, but its room interior is the portrait layout, because the room switches to portrait when width < 0.95 × height; at 998×1024 the room stays landscape).
 The files are in the downloaded repo at `<SRC>/screenshots/states/<name>_1440x900.png` and `<name>_998x1024.png`; the images below link to the same files on GitHub.
 
 **Do this:** before you call the build done, open each of these images with Read, then put your own deployment in the same state (same trigger) and take a screenshot at both sizes.
@@ -140,7 +140,7 @@ Team/agent colours in order: `#2f8cff`, `#2ecc71`, `#ff8a1f`, `#ff2d9b`, `#8f5bf
 
 **Campus** (`Campus3D.tsx`, three.js):
 - 6 active slots, two rows of 3, around a central plaza with a clock tower (magenta roof, live clock faces, pulsing magenta rings).
-  3 frozen slots in a column on the left. Curved roads with moving dashes run from the plaza to each active room; small blobs walk them. Trees around.
+  3 frozen slots in a column on the left. Extra teams get generated rooms in columns of 3 (section 3, step 7). Curved roads with moving dashes run from the plaza to each active room; small blobs walk them. Trees around.
 - Camera: perspective, FOV 34°. Default view looks at the campus straight from the front (azimuth 0), polar angle 0.6 rad
   (about 55° down), fitted to the free screen area. Orbit limits: polar 0.2–1.28 rad, distance 3–55. Left drag pans,
   right drag rotates, wheel zooms; buttons + − ⟲ ⟳ ⌂. Clicking a room flies the camera to it (polar 0.9).
@@ -531,7 +531,8 @@ Run these yourself. Do not ask the user to test.
   sent from the page (section 8).
 - **Rooms:** read-only. Never post page updates there.
 - **Secrets:** generated on the box into `~/.secrets/` (mode 600), passed to tools only as `$file:` references, never printed,
-  never in chat (except the private link, once, in the 1:1 chat), never in memory, git, data or logs. Never request
+  never in chat (except the private link, sent twice in the 1:1 chat: the setup link in section 6 and the final
+  message in section 9), never in memory, git, data or logs. Never request
   decrypted env values from Vercel.
 - **Webhook key:** you never see, read, copy or set it. The user pastes it (with the URL) on the app's private `/setup` page,
   which stores it in the private Blob. Never create a `WEBHOOK_KEY` env var, and never accept the key in chat.
