@@ -59,8 +59,8 @@ Then look at those files and at the reference images below. They are also in the
 - The UI is `<SRC>/components/ControlCenter.tsx`, `components/Campus3D.tsx`, `components/Campus3DLazy.tsx`,
   `lib/theme.ts`, `lib/tz.ts` and `app/layout.tsx`. `assemble.sh` (section 5) copies them **verbatim**. Do not edit,
   restyle, "simplify", translate or regenerate them, and do not write a new UI from this description.
-- The only UI changes allowed are the two text swaps `assemble.sh` already does (demo toast text → "Sent to the bot ✓",
-  page title → "Control Center"). The time zone comes from `NEXT_PUBLIC_TIMEZONE`. Everything else that differs comes from `data.json`.
+- The only UI change allowed is the one `assemble.sh` already does (page title → "Control Center"). It also removes the demo-only
+  files (`components/DemoApp.tsx`, `lib/demo-sim.ts`, `lib/demo-data.ts`), so in your build the buttons and ⟳ really go to you. The time zone comes from `NEXT_PUBLIC_TIMEZONE`. Everything else that differs comes from `data.json`.
 - The spec below is for **checking** your result, not for rebuilding it.
 
 ### Reference screenshots (live demo)
@@ -82,7 +82,7 @@ Then look at those files and at the reference images below. They are also in the
 | ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_390x844.png) `room_wall_zoom_390x844.png` | The same on a phone. |
 | ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/full_feed_1440x900.png) `full_feed_1440x900.png` | "Full feed" opened from the LIVE bar: all teams' activity, newest first. |
 | ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/full_feed_998x1024.png) `full_feed_998x1024.png` | The same on a tall screen. |
-| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/sent_toast_1440x900.png) `sent_toast_1440x900.png` | Approve clicked, then "Send now": the item shows "Approved ✓", the count drops, and a green toast shows the exact message that goes to the bot (in your build it reads "Sent to the bot ✓"). |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/sent_toast_1440x900.png) `sent_toast_1440x900.png` | Approve clicked, then "Send now": the item shows "Approved ✓", the count drops, and a green toast "Sent to the bot ✓" shows the exact message that goes to the bot. In the demo a simulation then plays the team's follow-up in the feed; in your build the real team does. |
 | ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/sent_toast_998x1024.png) `sent_toast_998x1024.png` | The same on a tall screen. |
 | ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/svg_fallback_1440x900.png) `svg_fallback_1440x900.png` | No WebGL: the same campus drawn by the built-in SVG engine (`IsoCampus`), with the same HUD. |
 
@@ -498,7 +498,7 @@ type DataShape = {
 
 - `next` on a routine is an ISO time with offset so the page can count down.
 - Empty valid document: `{"UPDATED":"","USAGE":{"weeklyPct":0,"reset":"","onDemandPct":0,"period":"","byTeam":[],"topBots":[]},"TEAMS":[]}`.
-- `<SRC>/lib/demo-data.ts` is a full example with invented data.
+- `<SRC>/lib/demo-data.ts` is a full example with invented data (`lib/demo-sim.ts` is the demo-only simulation; do not copy it).
 
 ## 12. Built-in limits
 

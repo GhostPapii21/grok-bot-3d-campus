@@ -32,11 +32,11 @@ approvals and numbers are all made up, and no button contacts anything.
   (to do / in progress / done), a live activity screen, a goal gauge, a usage battery and a
   scheduled-tasks panel with live countdowns and failure alerts.
 - **Approvals tray**: approve, reject or ask about any pending item; queue several and send them
-  together. In the real app they go to the main bot through a webhook; here you get a "demo mode" toast.
+  together. In the real app they go to the main bot through a webhook; in the demo a browser-only simulation plays the team's reply (nothing is sent anywhere).
 - **Live feed and HUD**: in-progress list, approvals window, usage %, next routines, "what changed
   since your last visit".
 - **Refresh**: ⟳ reloads the data now and, in the real app, asks the bot to rebuild it (at most once
-  every 5 minutes), then polls until the new data lands. In the demo the data changes every minute.
+  every 5 minutes), then polls until the new data lands. In the demo the same steps are simulated in the browser and the invented data changes (new feed items, tasks moving, counters).
 - Responsive: desktop, foldables and phones.
 
 ## Run locally
@@ -58,8 +58,8 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 |---|---|---|
 | Data | `lib/demo-data.ts`, generated relative to now | JSON in a private Vercel Blob, pushed by the main bot |
 | Access | open | private link `/<token>` → signed httpOnly cookie, everything else 404 |
-| Buttons | "demo mode" toast | `POST /api/send` → the bot's webhook routine → team leads |
-| Refresh | reloads demo data | reload + webhook "refresh" (once per 5 min) + polling |
+| Buttons | simulated in the browser: "sent", then the team's follow-up appears in the feed | `POST /api/send` → the bot's webhook routine → team leads |
+| Refresh | simulated: "request sent" → "the bot is reading the team chats" → new data | reload + webhook "refresh" (once per 5 min) + polling |
 
 ## Build your own
 
