@@ -24,6 +24,22 @@ approvals and numbers are all made up, and no button contacts anything.
 |---|---|
 | ![Fold](screenshots/demo_home_884x1104.png) | ![Phone](screenshots/demo_home_390x844.png) |
 
+### Every UI state
+
+All interactive states are in [`screenshots/states/`](screenshots/states/) (desktop 1440×900 and Galaxy Z Fold 998×1024). A few of them:
+
+| Battery → who uses credits | Room card before entering |
+|---|---|
+| ![Battery](screenshots/states/05-hud-battery-usage_1440x900.png) | ![Room card](screenshots/states/18-room-card-before-enter_1440x900.png) |
+| **Room hover card** | **Inside the room** |
+| ![Hover](screenshots/states/02-room-hover-tooltip_1440x900.png) | ![Inside](screenshots/states/24-inside-room_1440x900.png) |
+| **Room battery → team usage** | **Clock tower (scheduled tasks)** |
+| ![Team usage](screenshots/states/25-inside-room-battery-usage_1440x900.png) | ![Clock](screenshots/states/06-hud-clock-scheduled_1440x900.png) |
+| **Approve → sent to the bot** | **What's new since your last visit** |
+| ![Sent](screenshots/states/14-sent-to-bot-toast_1440x900.png) | ![New](screenshots/states/07-hud-whats-new_1440x900.png) |
+
+The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-reference-match-these-exactly).
+
 ## Features
 
 - **3D campus** (three.js): one room per active team, a side wing for frozen teams, orbit/zoom, minimap,
