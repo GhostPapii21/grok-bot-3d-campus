@@ -57,10 +57,20 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 
 ## Build your own
 
-[`skill/SKILL.md`](skill/SKILL.md) is a skill you can give your own main Grok Bot. It walks the bot
-through creating a new Vercel project and private Blob store, the private-link access, a webhook
-routine (with a prompt template), joining your team chats, the data schema, the push script, rate
-limits, a verification checklist and safety rules. `skill/reference/` holds the backend files it uses.
+[`skill/SKILL.md`](skill/SKILL.md) is a skill for your **main** Grok Bot. Give it the skill and it does the whole
+build itself:
+
+1. Maps your org: every agent and team group chat, leads and workers.
+2. Joins every team group chat to read along. It stays silent there.
+3. Builds the page data from the chats and the bots' transcripts. It never messages a team to collect it.
+4. Creates a new Vercel project with a private Blob store and secrets, then deploys the app.
+5. Creates a webhook routine so the page's buttons and ⟳ reach the bot.
+6. Keeps the data current from new group-chat messages and refresh requests.
+7. Tests itself end to end and sends you your private link.
+
+What's left for you: approve the Vercel connection and the routine if asked, then copy the routine's webhook URL
+and sender key into the secure box the bot sends you. The bot never sees the key. `skill/reference/` holds the
+backend files and scripts the skill uses.
 
 ## Tech
 

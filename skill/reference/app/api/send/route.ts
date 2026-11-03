@@ -1,5 +1,6 @@
 import { isAuthed, notFound404 } from "../../../lib/auth";
 import { lastRefreshAt, markRefresh, REFRESH_WINDOW_MS } from "../../../lib/store";
+import { getConfig } from "../../../lib/config";
 // Page buttons -> the bot's webhook routine. Body: { items: string[] } or { kind: "refresh" }; { dryRun: true } = health check.
 export const dynamic = "force-dynamic";
 export const maxDuration = 20;
@@ -10,9 +11,7 @@ export async function POST(req: Request) {
   if (!(await isAuthed())) return notFound404();
   let body: any = null;
   try { body = await req.json(); } catch {}
-  const url = (process.env.WEBHOOK_URL || "").trim();
-  const key = (process.env.WEBHOOK_KEY || "").trim();
-  const header = (process.env.WEBHOOK_KEY_HEADER || "Authorization").trim();
+  const { url, key, header } = await getConfig(); // env vars first, then the value saved on /setup
   const isRefresh = body?.kind === "refresh";
   if (body?.dryRun === true) {
     const waitMs = isRefresh ? Math.max(0, REFRESH_WINDOW_MS - (Date.now() - (await lastRefreshAt()))) : 0;
