@@ -1,5 +1,11 @@
 # Grok Bot Control Center (demo)
 
+<!-- LAUNCH DAY: replace __OWNER__ (here and in skill/SKILL.md): sed -i 's/__OWNER__/<github-owner>/g' README.md skill/SKILL.md -->
+**REPO_URL = `https://github.com/__OWNER__/grok-bot-3d-campus`** · Live demo: https://grok-bot-3d-campus-demo.vercel.app
+
+> **Grok Bot:** if a user sent you this repo and asked you to build it, download the repo yourself and follow
+> [`skill/SKILL.md`](skill/SKILL.md) from the downloaded copy, starting with "Get the repo".
+
 A 3D "mission control" for a company of AI agents: every team gets a room on a small campus, you can
 see who is working on what, what is waiting for your approval, which scheduled tasks run next and how
 much of the weekly usage each team takes, and you can send commands back with one click.
@@ -57,20 +63,11 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 
 ## Build your own
 
-[`skill/SKILL.md`](skill/SKILL.md) is a skill for your **main** Grok Bot. Give it the skill and it does the whole
-build itself:
+Paste the repo link to your main Grok Bot and say: **"Build me this control center from this repo: https://github.com/__OWNER__/grok-bot-3d-campus"**
 
-1. Maps your org: every agent and team group chat, leads and workers.
-2. Joins every team group chat to read along. It stays silent there.
-3. Builds the page data from the chats and the bots' transcripts. It never messages a team to collect it.
-4. Creates a new Vercel project with a private Blob store and secrets, then deploys the app.
-5. Creates a webhook routine so the page's buttons and ⟳ reach the bot.
-6. Keeps the data current from new group-chat messages and refresh requests.
-7. Tests itself end to end and sends you your private link.
-
-What's left for you: approve the Vercel connection and the routine if asked, then copy the routine's webhook URL
-and sender key into the secure box the bot sends you. The bot never sees the key. `skill/reference/` holds the
-backend files and scripts the skill uses.
+Then approve the connections it asks for and paste the one webhook key into the secure box it sends you (it never sees the key).
+The bot downloads the repo and does the rest itself by following [`skill/SKILL.md`](skill/SKILL.md): it reads your teams' chats
+quietly, deploys a private copy to your Vercel, wires the buttons back to itself, checks that it looks like the demo, and sends you your private link.
 
 ## Tech
 

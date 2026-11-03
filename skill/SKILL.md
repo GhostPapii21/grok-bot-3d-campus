@@ -9,12 +9,36 @@ You are the user's **main** Grok Bot (the one that coordinates their other agent
 Run this skill from start to finish **yourself**. Do not hand the user a to-do list. The user's part is
 limited to the approvals listed in section 0. Everything else in this file is something you do.
 
-Read the whole file once, including **Look and feel** below, then execute sections 1 to 9 in order. Each section ends with a **Check**.
+First do **Get the repo**. Then read the whole file once, including **Look and feel**, and execute sections 1 to 9 in order. Each section ends with a **Check**.
 Do not go to the next section until the check passes. If a check fails twice, stop and tell the user
 in your private chat what failed, in one or two sentences, and what you need from them.
 
-`<SKILL_DIR>` below means the folder this file is in (it holds `reference/`). `<DEMO_DIR>` is its parent,
-the demo repo.
+<!-- LAUNCH DAY: the only placeholder is __OWNER__ (in REPO_URL below and in the raw image links that use it).
+     Swap it in one line:  sed -i 's/__OWNER__/<github-owner>/g' skill/SKILL.md README.md -->
+**REPO_URL = `https://github.com/__OWNER__/grok-bot-3d-campus`**
+
+The user gives you only that repo link. You download everything yourself (next section) and work only from the downloaded
+files. `<SRC>` below means `~/control-center/src`, the downloaded repo. Every `skill/reference/...` path in this file is inside it.
+
+---
+
+## Get the repo (do this first)
+
+```bash
+REPO_URL=https://github.com/__OWNER__/grok-bot-3d-campus   # or the exact link the user gave you
+SRC=~/control-center/src
+mkdir -p ~/control-center
+if [ -d "$SRC/.git" ]; then git -C "$SRC" pull --ff-only
+elif command -v git >/dev/null; then git clone --depth 1 "$REPO_URL" "$SRC"
+else mkdir -p "$SRC" && curl -fsSL "$REPO_URL/archive/HEAD.tar.gz" | tar -xz --strip-components=1 -C "$SRC"; fi
+ls "$SRC/skill/SKILL.md" "$SRC/skill/reference/scripts/assemble.sh" "$SRC/components/ControlCenter.tsx"
+```
+- If the user's link differs from REPO_URL (a fork, another owner), use the user's link.
+- No `tar`? Use the zip instead: `curl -fsSL -o /tmp/cc.zip "$REPO_URL/archive/HEAD.zip"`, unzip it, and move the single top folder's contents into `$SRC`.
+- Then read `<SRC>/skill/SKILL.md` and follow that copy (it may be newer than the text you started from).
+- Do not ask the user to upload files. Everything this skill needs (UI, backend, scripts, reference screenshots) is in the repo.
+
+**Check:** the `ls` above lists all three files.
 
 ---
 
@@ -25,13 +49,14 @@ The page you build must look **the same** as the public demo. Only the data is d
 **Canonical reference: https://grok-bot-3d-campus-demo.vercel.app** (invented data, no login).
 Before you build, open it and take your own reference screenshots, so you know what "done" looks like:
 ```bash
-cd <tmp dir> && npm i puppeteer-core >/dev/null && node <SKILL_DIR>/reference/scripts/shoot.cjs https://grok-bot-3d-campus-demo.vercel.app ~/control-center/ref-shots
+mkdir -p ~/control-center/tools && cd ~/control-center/tools && npm i puppeteer-core >/dev/null
+NODE_PATH=~/control-center/tools/node_modules node ~/control-center/src/skill/reference/scripts/shoot.cjs https://grok-bot-3d-campus-demo.vercel.app ~/control-center/ref-shots
 ```
-Then look at those files and at the images below (Read shows them to you). If you only have this file without its folder,
-get the demo repo first; the screenshots are in `<SKILL_DIR>/reference/screenshots/`.
+Then look at those files and at the reference images below. They are also in the downloaded repo at
+`<SRC>/skill/reference/screenshots/` (open them with Read); the links below point to the same files on GitHub.
 
 ### Rule: reuse the UI, don't redesign it
-- The UI is `<DEMO_DIR>/components/ControlCenter.tsx`, `components/Campus3D.tsx`, `components/Campus3DLazy.tsx`,
+- The UI is `<SRC>/components/ControlCenter.tsx`, `components/Campus3D.tsx`, `components/Campus3DLazy.tsx`,
   `lib/theme.ts`, `lib/tz.ts` and `app/layout.tsx`. `assemble.sh` (section 5) copies them **verbatim**. Do not edit,
   restyle, "simplify", translate or regenerate them, and do not write a new UI from this description.
 - The only UI changes allowed are the two text swaps `assemble.sh` already does (demo toast text → "Sent to the bot ✓",
@@ -42,24 +67,24 @@ get the demo repo first; the screenshots are in `<SKILL_DIR>/reference/screensho
 
 | Screenshot | What it shows |
 |---|---|
-| ![](reference/screenshots/campus_home_1440x900.png) `campus_home_1440x900.png` | Default campus view on desktop: 6 active rooms in two rows of 3 around the central clock-tower plaza, 3 frozen rooms in a narrow wing on the left, room name pills above each room, the "In progress" list top-left, "Waiting for your approval" list top-right (magenta border), the top HUD pill, team filter chips, minimap + map buttons bottom-left, LIVE feed bar bottom-centre. |
-| ![](reference/screenshots/campus_home_998x1024.png) `campus_home_998x1024.png` | Tall/square screen (Galaxy Fold open, tablet): the two lists stay at the top corners and are shorter, and the campus is fitted into the largest free area, here **below** them. |
-| ![](reference/screenshots/campus_home_390x844.png) `campus_home_390x844.png` | Phone / Fold cover screen: no side lists; two bottom tabs ("⏳ Awaiting approval", "⚙️ In progress") with the LIVE bar above them; the camera is closer, so the sides may crop. |
-| ![](reference/screenshots/campus_lists_sheet_390x844.png) `campus_lists_sheet_390x844.png` | Phone: a bottom tab opened as a sheet (56% of the screen height) with the approval list and Approve / Reject / Ask buttons. |
-| ![](reference/screenshots/room_closeup_1440x900.png) `room_closeup_1440x900.png` | After clicking a room (or pressing 1–9): the camera flies to that room on the campus, agents get name tags, and the room panel opens on the right (tabs Approve / Tasks / Team / Scheduled / Activity, "Enter the room" button). |
-| ![](reference/screenshots/room_closeup_998x1024.png) `room_closeup_998x1024.png` | The same on a tall screen. |
-| ![](reference/screenshots/room_closeup_390x844.png) `room_closeup_390x844.png` | The same on a phone: the room panel is a bottom sheet. |
-| ![](reference/screenshots/room_interior_1440x900.png) `room_interior_1440x900.png` | "Enter the room": the room interior in CSS 3D. Back wall: team sign, LIVE TV, window, kanban (To do / In progress / Done). Left wall: goal plaque and usage battery. Right wall: the "← Campus" door. Lead with crown at the centre desk with the approvals tray and its count badge, the routines board on a stand, the members at desks in a front row. Bottom: previous room / 5 wall tabs / next room. |
-| ![](reference/screenshots/room_interior_998x1024.png) `room_interior_998x1024.png` | Interior on a tall screen (still the landscape room layout, centred). |
-| ![](reference/screenshots/room_interior_390x844.png) `room_interior_390x844.png` | Interior on a phone: the portrait room layout (deeper room, kanban above the TV and window, members in 2 columns, routines board in front). |
-| ![](reference/screenshots/room_wall_zoom_1440x900.png) `room_wall_zoom_1440x900.png` | A wall tab clicked (here 📝 Tasks): the wall content opens as a large readable board over the room; "↩ Room" goes back. |
-| ![](reference/screenshots/room_wall_zoom_998x1024.png) `room_wall_zoom_998x1024.png` | The same on a tall screen. |
-| ![](reference/screenshots/room_wall_zoom_390x844.png) `room_wall_zoom_390x844.png` | The same on a phone. |
-| ![](reference/screenshots/full_feed_1440x900.png) `full_feed_1440x900.png` | "Full feed" opened from the LIVE bar: all teams' activity, newest first. |
-| ![](reference/screenshots/full_feed_998x1024.png) `full_feed_998x1024.png` | The same on a tall screen. |
-| ![](reference/screenshots/sent_toast_1440x900.png) `sent_toast_1440x900.png` | Approve clicked, then "Send now": the item shows "Approved ✓", the count drops, and a green toast shows the exact message that goes to the bot (in your build it reads "Sent to the bot ✓"). |
-| ![](reference/screenshots/sent_toast_998x1024.png) `sent_toast_998x1024.png` | The same on a tall screen. |
-| ![](reference/screenshots/svg_fallback_1440x900.png) `svg_fallback_1440x900.png` | No WebGL: the same campus drawn by the built-in SVG engine (`IsoCampus`), with the same HUD. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_1440x900.png) `campus_home_1440x900.png` | Default campus view on desktop: 6 active rooms in two rows of 3 around the central clock-tower plaza, 3 frozen rooms in a narrow wing on the left, room name pills above each room, the "In progress" list top-left, "Waiting for your approval" list top-right (magenta border), the top HUD pill, team filter chips, minimap + map buttons bottom-left, LIVE feed bar bottom-centre. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_998x1024.png) `campus_home_998x1024.png` | Tall/square screen (Galaxy Fold open, tablet): the two lists stay at the top corners and are shorter, and the campus is fitted into the largest free area, here **below** them. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/campus_home_390x844.png) `campus_home_390x844.png` | Phone / Fold cover screen: no side lists; two bottom tabs ("⏳ Awaiting approval", "⚙️ In progress") with the LIVE bar above them; the camera is closer, so the sides may crop. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/campus_lists_sheet_390x844.png) `campus_lists_sheet_390x844.png` | Phone: a bottom tab opened as a sheet (56% of the screen height) with the approval list and Approve / Reject / Ask buttons. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_1440x900.png) `room_closeup_1440x900.png` | After clicking a room (or pressing 1–9): the camera flies to that room on the campus, agents get name tags, and the room panel opens on the right (tabs Approve / Tasks / Team / Scheduled / Activity, "Enter the room" button). |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_998x1024.png) `room_closeup_998x1024.png` | The same on a tall screen. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_closeup_390x844.png) `room_closeup_390x844.png` | The same on a phone: the room panel is a bottom sheet. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_interior_1440x900.png) `room_interior_1440x900.png` | "Enter the room": the room interior in CSS 3D. Back wall: team sign, LIVE TV, window, kanban (To do / In progress / Done). Left wall: goal plaque and usage battery. Right wall: the "← Campus" door. Lead with crown at the centre desk with the approvals tray and its count badge, the routines board on a stand, the members at desks in a front row. Bottom: previous room / 5 wall tabs / next room. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_interior_998x1024.png) `room_interior_998x1024.png` | Interior on a tall screen (still the landscape room layout, centred). |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_interior_390x844.png) `room_interior_390x844.png` | Interior on a phone: the portrait room layout (deeper room, kanban above the TV and window, members in 2 columns, routines board in front). |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_1440x900.png) `room_wall_zoom_1440x900.png` | A wall tab clicked (here 📝 Tasks): the wall content opens as a large readable board over the room; "↩ Room" goes back. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_998x1024.png) `room_wall_zoom_998x1024.png` | The same on a tall screen. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/room_wall_zoom_390x844.png) `room_wall_zoom_390x844.png` | The same on a phone. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/full_feed_1440x900.png) `full_feed_1440x900.png` | "Full feed" opened from the LIVE bar: all teams' activity, newest first. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/full_feed_998x1024.png) `full_feed_998x1024.png` | The same on a tall screen. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/sent_toast_1440x900.png) `sent_toast_1440x900.png` | Approve clicked, then "Send now": the item shows "Approved ✓", the count drops, and a green toast shows the exact message that goes to the bot (in your build it reads "Sent to the bot ✓"). |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/sent_toast_998x1024.png) `sent_toast_998x1024.png` | The same on a tall screen. |
+| ![](https://raw.githubusercontent.com/__OWNER__/grok-bot-3d-campus/main/skill/reference/screenshots/svg_fallback_1440x900.png) `svg_fallback_1440x900.png` | No WebGL: the same campus drawn by the built-in SVG engine (`IsoCampus`), with the same HUD. |
 
 ### Visual spec (taken from the code; use it to check, not to rebuild)
 
@@ -259,11 +284,11 @@ The UI is the demo repo's: Next.js (App Router) + **three.js** 3D campus, with a
 1. **Assemble** (one command; it copies the demo, swaps in the private backend, installs `@vercel/blob`,
    and runs `tsc` and `next build`):
    ```bash
-   bash <SKILL_DIR>/reference/scripts/assemble.sh <DEMO_DIR> ~/control-center/app <user IANA time zone>
+   bash ~/control-center/src/skill/reference/scripts/assemble.sh ~/control-center/src ~/control-center/app <user IANA time zone>
    ```
 2. **Secrets** (prints file names only, never values):
    ```bash
-   bash <SKILL_DIR>/reference/scripts/gen-secrets.sh
+   bash ~/control-center/src/skill/reference/scripts/gen-secrets.sh
    ```
    This writes `~/.secrets/cc/SESSION_SECRET`, `CONTROL_ACCESS_TOKEN`, `ADMIN_KEY` (one value per file, no newline,
    mode 600) and `~/.secrets/control-center.env` for `push-data.sh`.
@@ -393,10 +418,10 @@ Run these yourself. Do not ask the user to test.
    page → webhook → you → push. `POST /api/send {"dryRun":true}` → `configured: true` proves the command path is wired.
 3. **Visual check against the reference (required before sending the link).** Screenshot your own deployment:
    ```bash
-   cd <tmp dir with puppeteer-core> && node <SKILL_DIR>/reference/scripts/shoot.cjs --private ~/control-center/shots
+   NODE_PATH=~/control-center/tools/node_modules node ~/control-center/src/skill/reference/scripts/shoot.cjs --private ~/control-center/shots
    ```
    It saves `campus_home`, `room_closeup`, `room_interior` and `room_wall_zoom` at 1440×900, 998×1024 and 390×844 (file names only are printed).
-   Look at each one next to the same-named file in `<SKILL_DIR>/reference/screenshots/` and confirm all of these:
+   Look at each one next to the same-named file in `<SRC>/skill/reference/screenshots/` and confirm all of these:
    - same dark palette and magenta accent, same fonts; nothing light-themed or restyled;
    - campus: rooms around the clock-tower plaza, frozen wing on the left, name pills above rooms, same front camera angle;
    - desktop: "In progress" top-left, "Waiting for your approval" top-right with the magenta border, top HUD pill, chips, minimap bottom-left;
@@ -473,7 +498,7 @@ type DataShape = {
 
 - `next` on a routine is an ISO time with offset so the page can count down.
 - Empty valid document: `{"UPDATED":"","USAGE":{"weeklyPct":0,"reset":"","onDemandPct":0,"period":"","byTeam":[],"topBots":[]},"TEAMS":[]}`.
-- `<DEMO_DIR>/lib/demo-data.ts` is a full example with invented data.
+- `<SRC>/lib/demo-data.ts` is a full example with invented data.
 
 ## 12. Built-in limits
 
@@ -485,7 +510,7 @@ type DataShape = {
 | Client normally | every 60 s and when the tab becomes visible |
 | Session cookie | 60 days; rotating `CONTROL_ACCESS_TOKEN` signs out every device |
 
-## 13. Files in `reference/`
+## 13. Files in `<SRC>/skill/reference/`
 
 | File | Purpose |
 |---|---|
