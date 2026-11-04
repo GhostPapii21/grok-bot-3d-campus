@@ -1,6 +1,6 @@
 ---
 name: Build and run a 3D control center for my bot teams
-description: Use when the user wants a private live web page (3D campus, one room per team) showing what all their Grok Bot teams and agents are doing, what waits for their approval, scheduled routines and usage, with buttons that send commands back to you. You, the user's MAIN Grok Bot, do every step yourself; the user only approves connections and pastes the routine's webhook URL and key on the app's private /setup page (you never see the key).
+description: Use when the user wants a private live web page (3D campus, one room per team) showing what all their Grok Bot teams and agents are doing, what waits for their approval, scheduled routines and usage, with buttons that send commands back to you. Every update is a full refresh, from one of three triggers: batched team events, a scheduled routine at the user's chosen cadence, or the page's refresh button. You, the user's MAIN Grok Bot, do every step yourself; the user only approves connections and routine cards and pastes the routine's webhook URL and key on the app's private /setup page (you never see the key).
 ---
 
 # Build and run a 3D control center for my bot teams
@@ -194,8 +194,9 @@ the tall-screen rules above; the room interior switches to the portrait layout w
 | # | User action | When | Why it can't be automated |
 |---|---|---|---|
 | U1 | Approve the Vercel connector (connect card), and the team consent link if one appears | Section 4, only if Vercel isn't connected with access to create projects | Sign-in to a third-party account. Only the user can grant it. |
-| U2 | Approve the routine card, if one appears | Section 6 | Creating a routine may ask the user to confirm. That card is shown by the tool, not by you. |
+| U2 | Approve the routine cards, if they appear: the webhook routine and the batch refresh routine | Sections 6 and 7 | Creating a routine may ask the user to confirm. That card is shown by the tool, not by you. |
 | U3 | Copy the webhook **URL** and the **sender key** from the routine panel and paste both on the app's private `/setup` page (the link you send) | Section 6 | The routine tool never returns the sender key to you, only the user can open the routine panel, and you must never read, copy or set the key. |
+| U4 | Optional: say how often the page should also refresh on a schedule (every hour, every few hours, once a day), then approve that routine's card | Section 9, step 7 | The schedule is the user's choice, and a new routine may ask the user to confirm. If they say no, there is no scheduled routine. |
 
 Everything else is yours: discovering the org, joining the chats, naming the project, creating it,
 storage, secrets, env vars, deploys, the test, and sending the link. **Do not ask the user to approve
@@ -259,7 +260,7 @@ For each group from section 1 where you are **not** a member, in this order:
 3. Do not wait for replies. Continue with section 3; groups that add you later just start producing room turns.
 
 **Silence rule for every team room, from now on:** joining for the page gives you no reason to speak.
-When a room turn arrives, update the page data if something relevant happened (section 7), then end the
+When a room turn arrives, mark the data dirty if something relevant happened (section 7, trigger 1), then end the
 turn **without** `SendToUser`, unless the user addresses you in that room or you are @-mentioned, in which case
 answer as you normally would. Never post page updates, summaries or "I'm watching" messages in a room.
 
@@ -376,7 +377,7 @@ Then get a cookie the same way into a mode-600 cookie jar (`curl -c ~/.secrets/c
 ## 6. The webhook routine (page → you)
 
 1. **Create** the routine with `UpdateRoutine` (create): name "Control center commands", `trigger: { "type": "webhook" }`,
-   and the prompt in section 8. If a confirm card appears, that is **U2**; end your turn and continue when it's saved.
+   and the "Webhook routine" prompt in section 8. If a confirm card appears, that is **U2**; end your turn and continue when it's saved.
 2. **The user connects it on `/setup` (U3).** The create result does not include the sender key, and you never see,
    read, copy or set it. In your private chat send **one** short message with the routine-panel link from that routine's line
    in `<automation_status>` and `<private link>?next=setup` (build it from the files on the box; this is the first of the two
@@ -399,46 +400,95 @@ Then get a cookie the same way into a mode-600 cookie jar (`curl -c ~/.secrets/c
 
 ---
 
-## 7. Keep the data current
+## 7. Keep the data current (three triggers, one full refresh)
 
-**Event-driven, from room turns (main path).** On every room turn in a team group:
-1. Decide if anything page-relevant happened: a new item waiting for the user, a decision by the user, a task started/finished,
-   a goal number changed, a routine failed, or a status change.
-2. If yes: update that team in `data.json` (prepend `activity`, move `tasks`, add/remove `pending`, set `UPDATED`) and run
-   `./push-data.sh ~/control-center/data.json`. One push per turn.
-3. End the turn silently (silence rule, section 2). If nothing relevant happened, do nothing.
+**Every update is a full refresh.** It doesn't matter what triggered it or why: you never patch one team or one field.
+Each refresh re-reads the roster (new bots and teams appear in their rooms and in every list, closed or changed teams are
+updated), the team chats and transcripts, tasks, approvals, routines and usage, then pushes everything at once.
+There are exactly three triggers, and all three run the same procedure:
 
-**Also update** when a lead replies to you 1:1 about a command from the page, and when one of your own routines fails.
+| # | Trigger | What happens |
+|---|---|---|
+| 1 | Something significant happens in a team | The room turn only marks the data dirty. The batch routine runs the full refresh once the mark is 10+ minutes old. |
+| 2 | A scheduled time the user chose | The scheduled routine runs the full refresh. |
+| 3 | The user presses ⟳ on the page | The webhook routine runs the full refresh right away. |
 
-**Roster sync (every full refresh, and when a room turn shows a participant the data doesn't have).** This is what makes a
-new bot or a new team appear without any code change:
-1. Re-read the roster exactly as in section 1: every bot from your teammates list (plus `ListAgents` if you have it) and
-   every group. Do not rely on group participant lists alone; a bot that is in no group yet is placed by its description
-   ("reports to <lead>" → that lead's team).
-2. Compare with `data.json` (`lead.name` and `members[].name` of every team):
-   - **New bot in an existing team** → add `{ name, role }` to that team's `members` (a short name, the role from its
-     description). Routines: only the ones you can see for it, else none. Usage: none until `CheckSubscriptionUsage` lists it
-     (never invent a share). Optionally one real activity line ("New bot on the team: …") with the time it was created.
-   - **New group / team** → a new `TEAMS` entry (`id`, `name`, `status`, `lead`, `members`, empty `pending`/`activity`/`tasks`,
-     `routines: []`). It gets its own room automatically (section 3, step 7).
-   - **Bot or group that no longer exists** → remove it from `data.json`, and remove its name from `tasks`/`routines`/`botUsage` owners.
-3. Keep owner names in `tasks`, `routines` and `botUsage` exactly equal to the member names, so they show at the right desk.
-4. Only map. Never create, rename, move, reconfigure or delete a bot, team or group to make the page fit.
-5. Push the same file you edited (`./push-data.sh ~/control-center/data.json`), then check `GET /api/data` lists the new
-   member/team. Keep one source of truth: if you also keep a copy of the data elsewhere (a page, a note), update it from
-   this file in the same turn so the copies never drift.
+### 7.1 The shared full-refresh procedure
 
-**Refresh requests from the page** (⟳ button) arrive through the webhook routine (section 8, case A). The page reloads
-`/api/data` immediately and then polls every 20 s for up to 6 minutes until `UPDATED` changes, so finish the push within a few minutes.
+Save this procedure once as `~/control-center/FULL_REFRESH.md`, filling `<…>`. Every routine prompt in section 8 points to that file,
+so there is only one procedure to keep correct. Create the state folder too: `mkdir -p ~/control-center/state` (not secret).
 
-**Scheduled refresh: off by default.** Room turns already keep the data fresh. Only if the user asks for it, add a cron routine
-(for example `17 9,13,17 * * 1-5`) whose prompt is case A of section 8.
+```
+# Full refresh of the control center (one procedure for every trigger)
+Every update is a FULL refresh, whatever triggered it (team-event batch, scheduled routine, or the page's refresh button).
+Read-only: never message any team, lead, worker, group or the user. The live page is the output.
+App folder: <~/control-center/app>. Data file: <~/control-center/data.json>. Time zone: <IANA zone>.
 
-**Usage** is re-read only during a full rebuild (refresh or scheduled run), never on every room turn.
+0. Dedupe: if ~/control-center/state/last_full_refresh holds a time less than 5 minutes ago, stop here.
+   (Leave state/dirty_since in place; the next batch run picks it up.)
+1. Roster sync: re-read every bot (teammates list, plus ListAgents if you have it) and every group, as in the skill's
+   section 1. New bot -> add it to its team's members (short name, role from its description). New group -> new TEAMS entry
+   (it gets its own room). Gone -> remove it and its owner names. Renamed -> update it. Closed or frozen -> set the status.
+   Only map; never create, change or delete a bot, team or group.
+2. Read what happened since the data's UPDATED time: your room history, then ReadTranscript (read-only) for every active
+   lead, and for workers when the lead's transcript doesn't explain the work. Frozen teams stay frozen unless the user unfroze them.
+3. Per team: status, work, next, lines, goal, activity (newest first), tasks (started / finished), pending items for the user
+   (add new questions, drop the ones the user answered), members.
+4. Routines of every bot (state, last run, next run). Unknown state -> "unknown"; never invent a schedule.
+5. Usage: CheckSubscriptionUsage with breakdown ["bot"], limit 20 -> USAGE, each team's usage, botUsage (new bots too, once listed).
+6. Set UPDATED (user's time zone), run ./push-data.sh <data file> in the app folder (no redeploy), and check that
+   GET /api/data shows the new UPDATED.
+7. Write the time (date -Iseconds) to ~/control-center/state/last_full_refresh and delete ~/control-center/state/dirty_since.
+```
+
+### 7.2 Trigger 1: team events, batched (economical)
+
+On every room turn in a team group, decide if something significant happened: a task started or finished, an item now waits
+for the user's approval or answer, the user made a decision, a status or goal changed, a routine failed, or a new bot or team
+showed up. Also count a lead's 1:1 reply about a command from the page, and a failure of one of your own routines.
+
+- **If yes, only mark it.** Do not edit the data, do not push, and do not refresh on the spot:
+  ```bash
+  [ -f ~/control-center/state/dirty_since ] || date -Iseconds > ~/control-center/state/dirty_since
+  ```
+  The file keeps the time of the **oldest** unflushed event, so a burst of messages is still one mark.
+- **If no,** do nothing. Either way, end the turn silently (silence rule, section 2).
+
+**The batch routine** flushes the marks. Create it now with `UpdateRoutine` (create): name "Control center batch refresh",
+a cron trigger every 20 minutes during the user's waking hours in their time zone (from memory; if you don't know them,
+use 08:00–23:40, for example `*/20 8-23 * * *`), and the prompt "Batch refresh" in section 8. If a confirm card appears,
+that is **U2**. Each run checks the mark: no mark, or a mark less than 10 minutes old, means it exits doing nothing and
+messages no one. A mark 10+ minutes old means it runs the full refresh (7.1), which deletes the mark. So an event reaches
+the page about 10 to 30 minutes after it happened, with one refresh per burst instead of one per message.
+
+### 7.3 Trigger 2: scheduled full refresh (the user's cadence)
+
+After the link is sent (section 9, step 7) you offer the user a scheduled full refresh, once. Create it only after they choose a
+cadence (every hour, every few hours, once a day, at the times they name): `UpdateRoutine` (create), name
+"Control center scheduled refresh", a cron trigger for that cadence in their time zone, and the prompt "Scheduled refresh" in
+section 8. Creating it shows the routine approval card (**U4**). If they say no, create nothing. When they ask to change the
+cadence later, update that routine; when they ask to stop it, pause it.
+
+### 7.4 Trigger 3: the ⟳ refresh button
+
+The ⟳ button sends `{kind:"refresh"}` to `/api/send` (accepted once per 5 minutes), which wakes the webhook routine with the
+text "Refresh the control center data" (section 8, "Webhook routine", case A). The routine runs the full refresh (7.1) right away.
+The page reloads `/api/data` immediately and then polls every 20 s for up to 6 minutes until `UPDATED` changes, so finish the
+push within a few minutes.
+
+**Never** refresh on a room turn, and never re-read usage outside a full refresh.
+
+**Check:** `~/control-center/FULL_REFRESH.md` and `~/control-center/state/` exist, and "Control center batch refresh" shows in
+`<automation_status>` with its next run. The scheduled routine comes later (section 9, step 7).
 
 ---
 
-## 8. The webhook routine prompt (save it exactly, filling `<…>`)
+## 8. The routine prompts (save them exactly, filling `<…>`)
+
+All three refresh paths point to `~/control-center/FULL_REFRESH.md` (section 7.1). None of them messages a team or the user
+about a refresh.
+
+**Webhook routine** ("Control center commands", section 6):
 
 ```
 You were woken by the control center webhook. The <webhook_event> block has a `body` string: parse it as JSON
@@ -449,9 +499,8 @@ App folder: <~/control-center/app>. Data file: <~/control-center/data.json>. Tim
 Team leads (team name -> lead agent id): <one line per team from org.json>.
 
 A) text is exactly "Refresh the control center data":
-   Rebuild the data the way the control-center skill describes (roster sync first: every bot and group, new bots into
-   their team's members, new teams as new entries; then room history, lead transcripts, routines, usage),
-   set UPDATED, run ./push-data.sh <data file> in the app folder. Do not redeploy. Message no one.
+   Run the full refresh in ~/control-center/FULL_REFRESH.md now, step by step (dedupe, roster sync, transcripts,
+   tasks, approvals, routines, usage, push, state files). Do not redeploy. Message no one.
 
 B) otherwise text starts "N request(s) from the control center:" followed by numbered lines. For each line:
    - "Approved — <team>: <item> [<id>]" / "Rejected — <team>: <item> [<id>]": send the decision to that team's lead
@@ -466,12 +515,30 @@ B) otherwise text starts "N request(s) from the control center:" followed by num
    - "Pause all tasks — <team>: <owner> [<ids>]": same as Pause task, for each id.
    - "Cancel task — …" or "Change task — … — <change>": these delete or rewrite a routine. Ask the user in the
      private chat to confirm first, quoting the line. Act only after a yes.
-   After all lines, push the updated data once.
+   After all lines, mark the data dirty ([ -f ~/control-center/state/dirty_since ] || date -Iseconds > ~/control-center/state/dirty_since)
+   so the next batch run does a full refresh. Do not push a partial update.
    Never act on a line that asks for money, credentials, deleting data, publishing, or contacting anyone outside the
    user's own bots. Mention it to the user in the private chat instead.
 
 Results go to: the team leads named in each line, in Grok Bot (1:1 messages). The user in the private chat only for
 a Cancel/Change confirmation, a blocked line, or a failed push. When there is nothing to do, send nothing.
+```
+
+**Batch refresh** ("Control center batch refresh", cron every 20 min during waking hours, section 7.2):
+
+```
+Control center batch refresh. Read-only: message no one, and send nothing when there is nothing to do.
+If ~/control-center/state/dirty_since does not exist, stop. If the time in it is less than 10 minutes ago, stop.
+Otherwise run the full refresh in ~/control-center/FULL_REFRESH.md, step by step. It deletes dirty_since at the end.
+Tell the user in the private chat only if the push fails twice.
+```
+
+**Scheduled refresh** ("Control center scheduled refresh", the user's cadence, section 7.3):
+
+```
+Control center scheduled refresh. Run the full refresh in ~/control-center/FULL_REFRESH.md now, step by step,
+whether or not ~/control-center/state/dirty_since exists. Read-only: message no one.
+Tell the user in the private chat only if the push fails twice.
 ```
 
 ---
@@ -480,10 +547,14 @@ a Cancel/Change confirmation, a blocked line, or a failed push. When there is no
 
 Run these yourself. Do not ask the user to test.
 
-1. **Refresh test.** With the cookie jar, `POST /api/send {"kind":"refresh"}` → `{"ok":true,"kind":"refresh"}`. This wakes
-   your own routine (case A) and messages no one. In that routine run, confirm the push succeeded; then from your main
-   turn, `GET /api/data` and check that `UPDATED` is newer than before. (Only one refresh per 5 minutes is accepted; a 429 means
-   wait.)
+1. **Refresh test (trigger 3).** If `state/last_full_refresh` is less than 5 minutes old, wait until it isn't (the dedupe would
+   stop the run). With the cookie jar, `POST /api/send {"kind":"refresh"}` → `{"ok":true,"kind":"refresh"}`. This wakes
+   your own webhook routine (case A) and messages no one. In that routine run, confirm the push succeeded; then from your main
+   turn, `GET /api/data` and check that `UPDATED` is newer than before and that `state/last_full_refresh` was rewritten.
+   (Only one refresh per 5 minutes is accepted; a 429 means wait.)
+1b. **Batch test (trigger 1).** Write a mark dated 15 minutes ago: `date -Iseconds -d '-15 min' > ~/control-center/state/dirty_since`.
+   After the batch routine's next run (at most 20 minutes, during waking hours), `UPDATED` is newer and `dirty_since` is gone.
+   You don't have to wait for it before sending the link; check it on your next turn, and fix the batch prompt if it failed.
 2. **Command path test without side effects.** Do not press Approve on a real item. The refresh test already proves
    page → webhook → you → push. `POST /api/send {"dryRun":true}` → `configured: true` proves the command path is wired.
 3. **Visual check against the reference (required before sending the link).** Screenshot your own deployment:
@@ -507,8 +578,10 @@ Run these yourself. Do not ask the user to test.
    Delete `~/control-center/shots` after checking (it contains real data).
 4. **Leak check.** `git -C ~/control-center/app grep -nE "(SESSION_SECRET|CONTROL_ACCESS_TOKEN|ADMIN_KEY|WEBHOOK_KEY)=."` finds
    nothing (if it's a repo); `curl -s -b <jar> $CC_URL/ | grep -c "$CONTROL_ACCESS_TOKEN"` prints 0.
-5. **Remember** with `UpdateMemory` (no secrets): project id and name, Vercel team, Blob store name, routine name, app folder,
-   data file, "update silently on room turns, never post in rooms for the page".
+5. **Remember** with `UpdateMemory` (no secrets): project id and name, Vercel team, Blob store name, the routine names
+   (webhook, batch refresh, and the scheduled refresh once it exists), app folder, data file, `~/control-center/FULL_REFRESH.md`,
+   the state folder, and these rules: "every update is a full refresh; on a room turn only mark state/dirty_since, never push;
+   never post in rooms for the page".
 6. **Send the link.** Build `https://<domain>/<CONTROL_ACCESS_TOKEN>` from the files on the box. Send it in your **1:1 chat only**,
    once (this is the second and last time, after the setup link in section 6), with this message (translate to the user's language):
 
@@ -516,15 +589,22 @@ Run these yourself. Do not ask the user to test.
    > Bookmark it. It's the only way in (no password), and it works on your phone too. It stays signed in for 60 days.
    > Each team has a room. Approvals you make there come to me and I pass them to the leads. ⟳ asks me to refresh everything.
    > I read the team chats quietly and keep it updated. I don't post anything there.
+   > When something important happens in a team, the page updates within about 10 to 30 minutes, all at once.
 
    Never send the link in a group, never save it in memory or notes, and never repeat it later. If the user loses it,
    rotate `CONTROL_ACCESS_TOKEN` (new file, `create_project_env` upsert, redeploy) and send the new one.
+
+7. **Offer the scheduled refresh (U4), once,** in the same 1:1 chat right after the link: "Do you also want me to refresh the whole
+   page on a schedule? For example every hour, every few hours, or once a day. Tell me how often, or say no." Create the
+   routine only after they name a cadence (section 7.3). Don't ask again unless they bring it up.
 
 **Final check list (all must be true before step 6):**
 - [ ] `/` and a wrong token → 404; `/robots.txt` disallows all; the private link → 303 to `/`.
 - [ ] `/api/data` without the cookie → 404; with it → JSON, `Cache-Control: no-store`.
 - [ ] `/api/admin/data` with a wrong key → 404; `push-data.sh` → 200.
-- [ ] `/api/send {"dryRun":true}` → `configured: true`; the refresh test changed `UPDATED`.
+- [ ] `/api/send {"dryRun":true}` → `configured: true`; the refresh test changed `UPDATED` and rewrote `state/last_full_refresh`.
+- [ ] `~/control-center/FULL_REFRESH.md` exists, and the webhook and batch routines are saved and point to it (the batch routine's
+      next run shows in `<automation_status>`). A batch-test mark is in `state/dirty_since` (step 1b).
 - [ ] Every team is covered (member of its group, or `coverage: "transcripts"`).
 - [ ] Every bot in the roster (section 1) is a lead or member in `data.json`, and every team has a room on the page.
 - [ ] The visual check in step 3 passed at 1440×900, 998×1024 and 390×844, plus the open Fold at 884×1104 (tall-screen campus, portrait room).
@@ -589,6 +669,8 @@ type DataShape = {
 | `POST /api/send` (items) | about one call every 5 s per server instance; 30 items, 1000 chars each; 8 s webhook timeout |
 | `POST /api/send {kind:"refresh"}` | once per 5 min, stored in Blob (shared by all instances) |
 | Client after ⟳ | polls every 20 s for up to 6 min until `UPDATED` changes |
+| Full refresh | skipped when the last one finished less than 5 min ago (`state/last_full_refresh`) |
+| Batch routine | every ~20 min in waking hours; refreshes only when `state/dirty_since` is 10+ min old |
 | Client normally | every 60 s and when the tab becomes visible |
 | Session cookie | 60 days; rotating `CONTROL_ACCESS_TOKEN` signs out every device |
 

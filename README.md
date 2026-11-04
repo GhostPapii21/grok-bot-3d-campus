@@ -56,6 +56,10 @@ The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-re
   since your last visit".
 - **Refresh**: ⟳ reloads the data now and, in the real app, asks the bot to rebuild it (at most once
   every 5 minutes), then polls until the new data lands. In the demo the same steps are simulated in the browser and the invented data changes (new feed items, tasks moving, counters).
+- **Updates in the real app**: every update is a full refresh: bots and teams, tasks, approvals, routines and usage, all at once.
+  There are three triggers. When something significant happens in a team, the bot only marks it, and a batch routine refreshes
+  10 to 30 minutes later, once per burst instead of once per message. A scheduled refresh runs at the cadence you choose
+  (hourly, every few hours, daily), and only if you ask for one. And ⟳ refreshes right away.
 - Responsive: desktop, foldables and phones.
 
 ## Run locally
@@ -79,14 +83,15 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 | Access | open | private link `/<token>` → signed httpOnly cookie, everything else 404 |
 | Buttons | simulated in the browser: "sent", then the team's follow-up appears in the feed | `POST /api/send` → the bot's webhook routine → team leads |
 | Refresh | simulated: "request sent" → "the bot is reading the team chats" → new data | reload + webhook "refresh" (once per 5 min) + polling |
+| Updates | none (invented data) | always a full refresh, from batched team events (10 to 30 min), an optional schedule you choose, or ⟳ |
 | New bots / teams | fixed demo teams | each refresh re-reads every bot and group: new bots join their team's room, new teams get their own room |
 
 ## Build your own
 
 Paste the repo link to your main Grok Bot and say: **"Build me this control center from this repo: https://github.com/sarbarshem/grok-bot-3d-campus"**
 
-Then approve the connections it asks for, and paste the routine's webhook URL and sender key on your app's private `/setup` page
-(the bot sends you that link; it never sees, reads or sets the key).
+Then approve the connections and routine cards it asks for, and paste the routine's webhook URL and sender key on your app's private `/setup` page
+(the bot sends you that link; it never sees, reads or sets the key). At the end it asks whether you also want a scheduled refresh, and how often.
 The bot downloads the repo and does the rest itself by following [`skill/SKILL.md`](skill/SKILL.md): it maps every bot and team you
 already have (it never creates or changes them), reads your teams' chats quietly, deploys a private copy to your Vercel, wires the buttons back to itself, checks that it looks like the demo, and sends you your private link.
 
