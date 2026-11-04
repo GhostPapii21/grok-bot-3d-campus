@@ -472,7 +472,8 @@ cadence later, update that routine; when they ask to stop it, pause it.
 ### 7.4 Trigger 3: the ⟳ refresh button
 
 The ⟳ button sends `{kind:"refresh"}` to `/api/send` (accepted once per 5 minutes), which wakes the webhook routine with the
-text "Refresh the control center data" (section 8, "Webhook routine", case A). The routine runs the full refresh (7.1) right away.
+text "Refresh the control center data" (section 8, "Webhook routine", case A). The routine runs the full refresh (7.1) right away. A press within 5 minutes of the previous full refresh is skipped by the
+dedupe (7.1, step 0).
 The page reloads `/api/data` immediately and then polls every 20 s for up to 6 minutes until `UPDATED` changes, so finish the
 push within a few minutes.
 
@@ -480,7 +481,7 @@ push within a few minutes.
 at once through the webhook routine, and you pass it to the team's lead at once, one message per lead (section 8, case B).
 Then you send the user one short line in your private chat saying what went to whom. Handling a command never edits the data
 file: case B only writes `state/dirty_since` if it's missing. The page shows the result at the next batch refresh
-(10 to 20 minutes), or right away if the user presses ⟳.
+(10 to 20 minutes during the user's waking hours), or right away if the user presses ⟳.
 
 **Never** refresh on a room turn, and never re-read usage outside a full refresh.
 
@@ -528,8 +529,8 @@ B) otherwise text starts "N request(s) from the control center:" followed by num
    user's own bots. Mention it to the user in the private chat instead.
 
 Results go to: the team leads named in each line, in Grok Bot (1:1 messages, one per lead). Then the user, in the private
-chat, gets ONE short line saying what went to whom. Also tell the user there for a Cancel/Change confirmation, a blocked
-line, or a failed push. A refresh (case A) sends the user nothing. When there is nothing to do, send nothing.
+chat, gets ONE short line saying what went to whom. Also tell the user there for a Cancel/Change confirmation or a blocked
+line. A refresh (case A) sends the user nothing. When there is nothing to do, send nothing.
 ```
 
 **Batch refresh** ("Control center batch refresh", cron every 10 min during waking hours, for example `*/10 8-23 * * *`, section 7.2):
@@ -597,7 +598,7 @@ Run these yourself. Do not ask the user to test.
    > Bookmark it. It's the only way in (no password), and it works on your phone too. It stays signed in for 60 days.
    > Each team has a room. Approvals you make there come to me and I pass them to the leads. ⟳ asks me to refresh everything.
    > I read the team chats quietly and keep it updated. I don't post anything there.
-   > When something important happens in a team, the page updates within about 10 to 20 minutes, all at once.
+   > When something important happens in a team, the page updates within about 10 to 20 minutes during your waking hours, all at once.
 
    Never send the link in a group, never save it in memory or notes, and never repeat it later. If the user loses it,
    rotate `CONTROL_ACCESS_TOKEN` (new file, `create_project_env` upsert, redeploy) and send the new one.

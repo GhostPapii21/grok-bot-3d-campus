@@ -56,9 +56,9 @@ The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-re
   since your last visit".
 - **Refresh**: ⟳ reloads the data now and, in the real app, asks the bot to rebuild it (at most once
   every 5 minutes), then polls until the new data lands. In the demo the same steps are simulated in the browser and the invented data changes (new feed items, tasks moving, counters).
-- **Updates in the real app**: every update is a full refresh: bots and teams, tasks, approvals, routines and usage, all at once.
-  There are three triggers. When something significant happens in a team, the bot only marks it, and a batch routine refreshes
-  10 to 20 minutes later, once per burst instead of once per message. A scheduled refresh runs at the cadence you choose
+- **Updates in the real app**: every update is a full refresh of bots and teams, tasks, approvals, routines and usage, all at once.
+  There are three triggers. When something significant happens in a team, the bot only marks it, and during your waking hours a batch routine
+  refreshes 10 to 20 minutes later, once per burst instead of once per message. A scheduled refresh runs at the cadence you choose
   (hourly, every few hours, daily), and only if you want one: the bot asks once, after it sends the link. And ⟳ refreshes right away.
   Approvals and commands you send from the page are not batched: they reach the bot and the team's lead right away,
   and the bot tells you in one line what went to whom.
