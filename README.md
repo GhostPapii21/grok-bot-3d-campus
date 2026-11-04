@@ -59,7 +59,7 @@ The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-re
 - **Updates in the real app**: every update is a full refresh: bots and teams, tasks, approvals, routines and usage, all at once.
   There are three triggers. When something significant happens in a team, the bot only marks it, and a batch routine refreshes
   10 to 30 minutes later, once per burst instead of once per message. A scheduled refresh runs at the cadence you choose
-  (hourly, every few hours, daily), and only if you ask for one. And ⟳ refreshes right away.
+  (hourly, every few hours, daily), and only if you want one: the bot asks once, after it sends the link. And ⟳ refreshes right away.
 - Responsive: desktop, foldables and phones.
 
 ## Run locally
