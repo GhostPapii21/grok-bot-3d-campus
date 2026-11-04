@@ -60,7 +60,8 @@ The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-re
   There are three triggers. When something significant happens in a team, the bot only marks it, and a batch routine refreshes
   10 to 20 minutes later, once per burst instead of once per message. A scheduled refresh runs at the cadence you choose
   (hourly, every few hours, daily), and only if you want one: the bot asks once, after it sends the link. And ⟳ refreshes right away.
-  Approvals and commands you send from the page are not batched: they reach the bot and the team's lead right away.
+  Approvals and commands you send from the page are not batched: they reach the bot and the team's lead right away,
+  and the bot tells you in one line what went to whom.
   Only the page's display of the result waits for the next batch refresh, unless you press ⟳.
 - Responsive: desktop, foldables and phones.
 

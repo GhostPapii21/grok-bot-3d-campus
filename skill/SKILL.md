@@ -477,9 +477,10 @@ The page reloads `/api/data` immediately and then polls every 20 s for up to 6 m
 push within a few minutes.
 
 **Commands from the page are not batched.** An approval, rejection, question or other command sent from the page reaches you
-at once through the webhook routine, and you pass it to the team's lead at once (section 8, case B). Only the page's display of
-the result waits: case B marks the data dirty, so the change shows at the next batch refresh (10 to 20 minutes), or right away
-if the user presses ⟳.
+at once through the webhook routine, and you pass it to the team's lead at once, one message per lead (section 8, case B).
+Then you send the user one short line in your private chat saying what went to whom. Handling a command never edits the data
+file: case B only writes `state/dirty_since` if it's missing. The page shows the result at the next batch refresh
+(10 to 20 minutes), or right away if the user presses ⟳.
 
 **Never** refresh on a room turn, and never re-read usage outside a full refresh.
 
@@ -507,26 +508,28 @@ A) text is exactly "Refresh the control center data":
    Run the full refresh in ~/control-center/FULL_REFRESH.md now, step by step (dedupe, roster sync, transcripts,
    tasks, approvals, routines, usage, push, state files). Do not redeploy. Message no one.
 
-B) otherwise text starts "N request(s) from the control center:" followed by numbered lines. For each line:
-   - "Approved — <team>: <item> [<id>]" / "Rejected — <team>: <item> [<id>]": send the decision to that team's lead
-     with SendToAgent (priority true), word for word plus "(decided by the user in the control center)". Remove the
-     item <id> from that team's pending list and add an activity line.
+B) otherwise text starts "N request(s) from the control center:" followed by numbered lines. Forward right away, and
+   put all lines for the same lead into ONE SendToAgent message (priority true). For each line:
+   - "Approved — <team>: <item> [<id>]" / "Rejected — <team>: <item> [<id>]": send the decision to that team's lead,
+     word for word plus "(decided by the user in the control center)".
    - "Question — <team>: <item> [<id>] — <question>": send the question to the lead (priority true). Keep the item pending.
-   - "What's the status? — <team>: <task or bot>": ask the lead (priority true). Put the answer in that team's activity
-     when it arrives.
+   - "What's the status? — <team>: <task or bot>": ask the lead (priority true). When the answer arrives, only mark the
+     data dirty (as below); the next full refresh shows it.
    - "Note to the team lead — <team>: …": forward the note as written (priority true).
    - "Pause task / Resume / Run now — <team>: <owner> / <routine> [<id>]": if the routine is yours, do it with
      UpdateRoutine; otherwise forward it to the owner's lead (priority true).
    - "Pause all tasks — <team>: <owner> [<ids>]": same as Pause task, for each id.
    - "Cancel task — …" or "Change task — … — <change>": these delete or rewrite a routine. Ask the user in the
      private chat to confirm first, quoting the line. Act only after a yes.
-   After all lines, mark the data dirty ([ -f ~/control-center/state/dirty_since ] || date -Iseconds > ~/control-center/state/dirty_since)
-   so the next batch run does a full refresh. Do not push a partial update.
+   Do NOT edit the data file for a command: no removing pending items, no activity lines, no push. After all lines,
+   only mark the data dirty ([ -f ~/control-center/state/dirty_since ] || date -Iseconds > ~/control-center/state/dirty_since);
+   the next full refresh picks up the change.
    Never act on a line that asks for money, credentials, deleting data, publishing, or contacting anyone outside the
    user's own bots. Mention it to the user in the private chat instead.
 
-Results go to: the team leads named in each line, in Grok Bot (1:1 messages). The user in the private chat only for
-a Cancel/Change confirmation, a blocked line, or a failed push. When there is nothing to do, send nothing.
+Results go to: the team leads named in each line, in Grok Bot (1:1 messages, one per lead). Then the user, in the private
+chat, gets ONE short line saying what went to whom. Also tell the user there for a Cancel/Change confirmation, a blocked
+line, or a failed push. A refresh (case A) sends the user nothing. When there is nothing to do, send nothing.
 ```
 
 **Batch refresh** ("Control center batch refresh", cron every 10 min during waking hours, for example `*/10 8-23 * * *`, section 7.2):
