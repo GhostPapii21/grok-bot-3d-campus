@@ -58,8 +58,10 @@ The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-re
   every 5 minutes), then polls until the new data lands. In the demo the same steps are simulated in the browser and the invented data changes (new feed items, tasks moving, counters).
 - **Updates in the real app**: every update is a full refresh: bots and teams, tasks, approvals, routines and usage, all at once.
   There are three triggers. When something significant happens in a team, the bot only marks it, and a batch routine refreshes
-  10 to 30 minutes later, once per burst instead of once per message. A scheduled refresh runs at the cadence you choose
+  10 to 20 minutes later, once per burst instead of once per message. A scheduled refresh runs at the cadence you choose
   (hourly, every few hours, daily), and only if you want one: the bot asks once, after it sends the link. And ⟳ refreshes right away.
+  Approvals and commands you send from the page are not batched: they reach the bot and the team's lead right away.
+  Only the page's display of the result waits for the next batch refresh, unless you press ⟳.
 - Responsive: desktop, foldables and phones.
 
 ## Run locally
@@ -83,7 +85,7 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 | Access | open | private link `/<token>` → signed httpOnly cookie, everything else 404 |
 | Buttons | simulated in the browser: "sent", then the team's follow-up appears in the feed | `POST /api/send` → the bot's webhook routine → team leads |
 | Refresh | simulated: "request sent" → "the bot is reading the team chats" → new data | reload + webhook "refresh" (once per 5 min) + polling |
-| Updates | none (invented data) | always a full refresh, from batched team events (10 to 30 min), an optional schedule you choose, or ⟳ |
+| Updates | none (invented data) | always a full refresh, from batched team events (10 to 20 min), an optional schedule you choose, or ⟳ |
 | New bots / teams | fixed demo teams | each refresh re-reads every bot and group: new bots join their team's room, new teams get their own room |
 
 ## Build your own

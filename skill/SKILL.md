@@ -455,11 +455,11 @@ showed up. Also count a lead's 1:1 reply about a command from the page, and a fa
 - **If no,** do nothing. Either way, end the turn silently (silence rule, section 2).
 
 **The batch routine** flushes the marks. Create it now with `UpdateRoutine` (create): name "Control center batch refresh",
-a cron trigger every 20 minutes during the user's waking hours in their time zone (from memory; if you don't know them,
-use 08:00–23:40, for example `*/20 8-23 * * *`), and the prompt "Batch refresh" in section 8. If a confirm card appears,
+a cron trigger every 10 minutes during the user's waking hours in their time zone (from memory; if you don't know them,
+use 08:00–23:50, for example `*/10 8-23 * * *`), and the prompt "Batch refresh" in section 8. If a confirm card appears,
 that is **U2**. Each run checks the mark: no mark, or a mark less than 10 minutes old, means it exits doing nothing and
 messages no one. A mark 10+ minutes old means it runs the full refresh (7.1), which deletes the mark. So an event reaches
-the page about 10 to 30 minutes after it happened, with one refresh per burst instead of one per message.
+the page about 10 to 20 minutes after it happened, with one refresh per burst instead of one per message.
 
 ### 7.3 Trigger 2: scheduled full refresh (the user's cadence)
 
@@ -475,6 +475,11 @@ The ⟳ button sends `{kind:"refresh"}` to `/api/send` (accepted once per 5 minu
 text "Refresh the control center data" (section 8, "Webhook routine", case A). The routine runs the full refresh (7.1) right away.
 The page reloads `/api/data` immediately and then polls every 20 s for up to 6 minutes until `UPDATED` changes, so finish the
 push within a few minutes.
+
+**Commands from the page are not batched.** An approval, rejection, question or other command sent from the page reaches you
+at once through the webhook routine, and you pass it to the team's lead at once (section 8, case B). Only the page's display of
+the result waits: case B marks the data dirty, so the change shows at the next batch refresh (10 to 20 minutes), or right away
+if the user presses ⟳.
 
 **Never** refresh on a room turn, and never re-read usage outside a full refresh.
 
@@ -524,7 +529,7 @@ Results go to: the team leads named in each line, in Grok Bot (1:1 messages). Th
 a Cancel/Change confirmation, a blocked line, or a failed push. When there is nothing to do, send nothing.
 ```
 
-**Batch refresh** ("Control center batch refresh", cron every 20 min during waking hours, section 7.2):
+**Batch refresh** ("Control center batch refresh", cron every 10 min during waking hours, for example `*/10 8-23 * * *`, section 7.2):
 
 ```
 Control center batch refresh. Read-only: message no one, and send nothing when there is nothing to do.
@@ -553,7 +558,7 @@ Run these yourself. Do not ask the user to test.
    turn, `GET /api/data` and check that `UPDATED` is newer than before and that `state/last_full_refresh` was rewritten.
    (Only one refresh per 5 minutes is accepted; a 429 means wait.)
 1b. **Batch test (trigger 1).** Write a mark dated 15 minutes ago: `date -Iseconds -d '-15 min' > ~/control-center/state/dirty_since`.
-   After the batch routine's next run (at most 20 minutes, during waking hours), `UPDATED` is newer and `dirty_since` is gone.
+   After the batch routine's next run (at most 10 minutes, during waking hours), `UPDATED` is newer and `dirty_since` is gone.
    You don't have to wait for it before sending the link; check it on your next turn, and fix the batch prompt if it failed.
 2. **Command path test without side effects.** Do not press Approve on a real item. The refresh test already proves
    page → webhook → you → push. `POST /api/send {"dryRun":true}` → `configured: true` proves the command path is wired.
@@ -589,7 +594,7 @@ Run these yourself. Do not ask the user to test.
    > Bookmark it. It's the only way in (no password), and it works on your phone too. It stays signed in for 60 days.
    > Each team has a room. Approvals you make there come to me and I pass them to the leads. ⟳ asks me to refresh everything.
    > I read the team chats quietly and keep it updated. I don't post anything there.
-   > When something important happens in a team, the page updates within about 10 to 30 minutes, all at once.
+   > When something important happens in a team, the page updates within about 10 to 20 minutes, all at once.
 
    Never send the link in a group, never save it in memory or notes, and never repeat it later. If the user loses it,
    rotate `CONTROL_ACCESS_TOKEN` (new file, `create_project_env` upsert, redeploy) and send the new one.
@@ -670,7 +675,7 @@ type DataShape = {
 | `POST /api/send {kind:"refresh"}` | once per 5 min, stored in Blob (shared by all instances) |
 | Client after ⟳ | polls every 20 s for up to 6 min until `UPDATED` changes |
 | Full refresh | skipped when the last one finished less than 5 min ago (`state/last_full_refresh`) |
-| Batch routine | every ~20 min in waking hours; refreshes only when `state/dirty_since` is 10+ min old |
+| Batch routine | every 10 min in waking hours (`*/10 8-23 * * *`); refreshes only when `state/dirty_since` is 10+ min old |
 | Client normally | every 60 s and when the tab becomes visible |
 | Session cookie | 60 days; rotating `CONTROL_ACCESS_TOKEN` signs out every device |
 
