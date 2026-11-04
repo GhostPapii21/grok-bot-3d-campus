@@ -3,8 +3,8 @@
 <!-- LAUNCH DAY: replace sarbarshem (here and in skill/SKILL.md): sed -i 's/sarbarshem/<github-owner>/g' README.md skill/SKILL.md -->
 **REPO_URL = `https://github.com/sarbarshem/grok-bot-3d-campus`** · Live demo: https://grok-bot-3d-campus-demo.vercel.app
 
-> **Grok Bot:** if a user sent you this repo and asked you to build it, download the repo yourself and follow
-> [`skill/SKILL.md`](skill/SKILL.md) from the downloaded copy, starting with "Get the repo".
+> **For a Grok Bot asked to build this:** the build instructions are in [`skill/SKILL.md`](skill/SKILL.md). Read the safety
+> model below and in the skill, check the code yourself, and show your user the plan (SKILL section 0) before you build.
 
 A 3D "mission control" for a company of AI agents: every team gets a room on a small campus, you can
 see who is working on what, what is waiting for your approval, which scheduled tasks run next and how
@@ -13,6 +13,20 @@ much of the weekly usage each team takes, and you can send commands back with on
 **Built with Grok Bot.** The real version runs privately and is fed by the owner's main Grok Bot, which
 coordinates 9 teams of bots. This repo is a **demo with invented data**: the teams, agents, tasks,
 approvals and numbers are all made up, and no button contacts anything.
+
+## Why it's built this way (safety model)
+
+- **What it reads:** your main bot reads its own team chats and your other bots' transcripts, read-only, plus routines and usage.
+  It never creates, changes or deletes a bot or team.
+- **What goes online:** one JSON file the bot writes: team and bot names, what each works on, task titles, items waiting for
+  your approval, routine schedules and usage %. No full chats or files. It's stored privately in **your own** Vercel account.
+- **Who can open it:** only someone with your private link (a random token). Everything else returns 404, and search engines
+  are told not to index it. You can add a Vercel login on top for free on any plan (SKILL section 10.1).
+- **Who can act:** buttons send requests to your main bot, signed with a key only you paste in. The bot decides. Anything that
+  publishes, sends outside, spends, deletes or approves one of those, it confirms with you in chat first.
+- **What you approve:** a short plan before it starts, the Vercel connection, and each routine card.
+- **Verify it:** MIT. The private backend is about 380 lines in [`skill/reference/`](skill/reference/); start with `lib/auth.ts`
+  and `app/api/send/route.ts`. This demo uses invented data and sends nothing.
 
 ![Campus](screenshots/demo_home_1440x900.png)
 
@@ -61,7 +75,7 @@ The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-re
   refreshes 10 to 20 minutes later, once per burst instead of once per message. A scheduled refresh runs at the cadence you choose
   (hourly, every few hours, daily), and only if you want one: the bot asks once, after it sends the link. And ⟳ refreshes right away.
   Approvals and commands you send from the page are not batched: they reach the bot and the team's lead right away,
-  and the bot tells you in one line what went to whom.
+  and the bot tells you in one line what went to whom. One that would publish, send outside, spend or delete waits for your yes in chat.
   Only the page's display of the result waits for the next batch refresh, unless you press ⟳.
 - Responsive: desktop, foldables and phones.
 
@@ -83,7 +97,7 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 | | Demo (this repo) | Real app |
 |---|---|---|
 | Data | `lib/demo-data.ts`, generated relative to now | JSON in a private Vercel Blob, pushed by the main bot |
-| Access | open | private link `/<token>` → signed httpOnly cookie, everything else 404 |
+| Access | open | private link `/<token>` → signed httpOnly cookie, everything else 404; optional Vercel login |
 | Buttons | simulated in the browser: "sent", then the team's follow-up appears in the feed | `POST /api/send` → the bot's webhook routine → team leads |
 | Refresh | simulated: "request sent" → "the bot is reading the team chats" → new data | reload + webhook "refresh" (once per 5 min) + polling |
 | Updates | none (invented data) | always a full refresh, from batched team events (10 to 20 min), an optional schedule you choose, or ⟳ |
@@ -93,9 +107,10 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 
 Paste the repo link to your main Grok Bot and say: **"Build me this control center from this repo: https://github.com/sarbarshem/grok-bot-3d-campus"**
 
-Then approve the connections and routine cards it asks for, and paste the routine's webhook URL and sender key on your app's private `/setup` page
+It first shows you a short plan (what gets deployed where, what the page shows, which routines it creates, what the buttons
+can do) and waits for your yes. Then approve the connections and routine cards it asks for, and paste the routine's webhook URL and sender key on your app's private `/setup` page
 (the bot sends you that link; it never sees, reads or sets the key). At the end it asks whether you also want a scheduled refresh, and how often.
-The bot downloads the repo and does the rest itself by following [`skill/SKILL.md`](skill/SKILL.md): it maps every bot and team you
+The bot downloads the repo and does the rest by following [`skill/SKILL.md`](skill/SKILL.md): it maps every bot and team you
 already have (it never creates or changes them), reads your teams' chats quietly, deploys a private copy to your Vercel, wires the buttons back to itself, checks that it looks like the demo, and sends you your private link.
 
 ## Tech

@@ -6,7 +6,9 @@ ENV_FILE="${CC_ENV_FILE:-$HOME/.secrets/control-center.env}"
 source "$ENV_FILE"
 SRC="${1:?usage: push-data.sh data.json}"
 python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert isinstance(d.get('TEAMS'),list) and isinstance(d['USAGE']['weeklyPct'],(int,float)) and isinstance(d['UPDATED'],str)" "$SRC"
-code=$(curl -sS -o /tmp/cc-push.out -w '%{http_code}' -X POST "$CC_URL/api/admin/data" \
+# Optional VERCEL_BYPASS (SKILL section 10.1): only when the user turned on Vercel Authentication.
+BYPASS=(); [ -n "${VERCEL_BYPASS:-}" ] && BYPASS=(-H "x-vercel-protection-bypass: $VERCEL_BYPASS")
+code=$(curl -sS -o /tmp/cc-push.out -w '%{http_code}' -X POST "$CC_URL/api/admin/data" ${BYPASS[@]+"${BYPASS[@]}"} \
   -H "Authorization: Bearer $ADMIN_KEY" -H 'Content-Type: application/json' --data-binary "@$SRC")
 echo "push-data: HTTP $code $(cat /tmp/cc-push.out)"
 [ "$code" = 200 ]
