@@ -24,7 +24,7 @@ approvals and numbers are all made up, and no button contacts anything.
   are told not to index it. You can add a Vercel login on top for free on any plan (SKILL section 10.1).
 - **Who can act:** buttons send requests to your main bot, signed with a key only you paste in. The bot decides. Anything that
   publishes, sends outside, spends, deletes or approves one of those, it confirms with you in chat first.
-- **What you approve:** a short plan before it starts, the Vercel connection, and each routine card.
+- **What you approve:** a short plan before it starts, the Vercel connection, and a routine card only when a tool raises one.
 - **Verify it:** MIT. The private backend is about 380 lines in [`skill/reference/`](skill/reference/); start with `lib/auth.ts`
   and `app/api/send/route.ts`. This demo uses invented data and sends nothing.
 
@@ -71,12 +71,18 @@ The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-re
 - **Refresh**: ⟳ reloads the data now and, in the real app, asks the bot to rebuild it (at most once
   every 5 minutes), then polls until the new data lands. In the demo the same steps are simulated in the browser and the invented data changes (new feed items, tasks moving, counters).
 - **Updates in the real app**: every update is a full refresh of bots and teams, tasks, approvals, routines and usage, all at once.
-  There are three triggers. When something significant happens in a team, the bot only marks it, and during your waking hours a batch routine
-  refreshes 10 to 20 minutes later, once per burst instead of once per message. A scheduled refresh runs at the cadence you choose
-  (hourly, every few hours, daily), and only if you want one: the bot asks once, after it sends the link. And ⟳ refreshes right away.
-  Approvals and commands you send from the page are not batched: they reach the bot and the team's lead right away,
-  and the bot tells you in one line what went to whom. One that would publish, send outside, spend or delete waits for your yes in chat.
-  Only the page's display of the result waits for the next batch refresh, unless you press ⟳.
+  There are three refresh triggers. On a significant team event, your main bot records the oldest unflushed change and, if no timer
+  is pending, creates one dated one-off routine for ten minutes later. Later events share the pending timer; they do not restart it.
+  The timer runs the full-refresh procedure, then deletes itself and its pending-timer state file. A timer that would fall in your
+  quiet hours or days is not created; the chosen scheduled backup refresh catches up. With no significant events, no event timer runs.
+  Scheduled backups can still run on quiet workdays. That backup is the cadence you choose (hourly, every few hours, daily), and only
+  if you want one: your main bot asks once, after it sends the link. The page's refresh button remains immediate, subject to the
+  existing five-minute dedupe. Commands still reach the bot immediately and keep all existing approval safeguards: they reach your
+  main bot and the team's lead right away, and the bot tells you in one line what went to whom. One that would publish, send outside,
+  spend or delete waits for your yes in chat.
+  Only the page's display of that result waits for the one-off timer, about ten minutes after the oldest unflushed change. If no timer
+  was created because the time falls in your quiet hours or days, the display waits for the scheduled backup. Pressing ⟳ shows it
+  right away, subject to the same five-minute dedupe.
 - Responsive: desktop, foldables and phones.
 
 ## Run locally
@@ -100,7 +106,7 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 | Access | open | private link `/<token>` → signed httpOnly cookie, everything else 404; optional Vercel login |
 | Buttons | simulated in the browser: "sent", then the team's follow-up appears in the feed | `POST /api/send` → the bot's webhook routine → team leads |
 | Refresh | simulated: "request sent" → "the bot is reading the team chats" → new data | reload + webhook "refresh" (once per 5 min) + polling |
-| Updates | none (invented data) | always a full refresh, from batched team events (10 to 20 min), an optional schedule you choose, or ⟳ |
+| Updates | none (invented data) | always a full refresh: one dated one-off timer about ten minutes after the oldest unflushed team event (later events share it; skipped in quiet hours or days, when the scheduled backup catches up), an optional schedule you choose, or ⟳ |
 | New bots / teams | fixed demo teams | each refresh re-reads every bot and group: new bots join their team's room, new teams get their own room |
 
 ## Build your own
@@ -108,7 +114,7 @@ Optional: `NEXT_PUBLIC_TIMEZONE=Europe/Berlin npm run dev` to show times in your
 Paste the repo link to your main Grok Bot and say: **"Build me this control center from this repo: https://github.com/sarbarshem/grok-bot-3d-campus"**
 
 It first shows you a short plan (what gets deployed where, what the page shows, which routines it creates, what the buttons
-can do) and waits for your yes. Then approve the connections and routine cards it asks for, and paste the routine's webhook URL and sender key on your app's private `/setup` page
+can do) and waits for your yes. Then approve the connections and any routine card a tool raises, and paste the routine's webhook URL and sender key on your app's private `/setup` page
 (the bot sends you that link; it never sees, reads or sets the key). At the end it asks whether you also want a scheduled refresh, and how often.
 The bot downloads the repo and does the rest by following [`skill/SKILL.md`](skill/SKILL.md): it maps every bot and team you
 already have (it never creates or changes them), reads your teams' chats quietly, deploys a private copy to your Vercel, wires the buttons back to itself, checks that it looks like the demo, and sends you your private link.
