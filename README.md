@@ -119,6 +119,54 @@ can do) and waits for your yes. Then approve the connections and any routine car
 The bot downloads the repo and does the rest by following [`skill/SKILL.md`](skill/SKILL.md): it maps every bot and team you
 already have (it never creates or changes them), reads your teams' chats quietly, deploys a private copy to your Vercel, wires the buttons back to itself, checks that it looks like the demo, and sends you your private link.
 
+## What it costs to run
+
+Page views and polling the saved JSON use no Grok Bot usage. Hosting can cost $0 on Vercel's free plan with private Blob storage, within its free allowances. Reading chats and refreshing the data use your subscription's usage.
+
+### Cost by part
+
+These rough figures use a reference setup of about a dozen teams. Percentages mean portions of a full Super weekly limit, not shares of the work your bots do.
+
+| Part | Rough cost against a Super weekly limit |
+|---|---|
+| Full refresh | ≈0.4% per refresh. Scheduled backups and one-off timers run the same full-refresh procedure. Your cost depends on your teams and chat volume. |
+| Setting a timer | A scheduling step within the main bot's group turn; no separate per-timer figure. Include it with group reading. |
+| Reading group messages | No reliable per-message figure. If your main bot already reads these groups to coordinate teams, this is reading it does anyway. Adding it to more groups for the campus adds reading work. |
+| Pressing ⟳ | ≈0.4% for the requested full refresh, plus webhook handling. The existing refresh limit and dedupe can skip a repeat request. |
+| Sending a page command | No reliable per-command figure. Combined page-webhook activity is under roughly 0.7% of the weekly limit in the reference usage sample; that aggregate includes commands and refresh requests. Work a command starts in other bots costs extra. |
+| Viewing the page or polling JSON | 0% Grok Bot usage. |
+| Hosting | 0% Grok Bot usage; $0 within Vercel's free-plan and private Blob allowances. |
+
+A significant team event sets one one-off timer for ten minutes later. Later events share it, so a batch costs one full refresh rather than a refresh per message. A later batch needs another refresh. Quiet hours or days defer event refreshes; the scheduled backups you choose still run at their scheduled times.
+
+### Weekly budget examples
+
+Use this rough formula, with every term expressed against the full weekly limit:
+
+```text
+Weekly cost ≈ (backup runs + event batches + manual ⟳ refreshes) × 0.4%
+              + command/webhook handling + group reading and timer setup
+```
+
+Count refreshes that actually run after dedupe. The reference webhook aggregate is not a per-command price or a fixed weekly surcharge. Do not add it on top of refresh costs without separating any refresh work already included.
+
+The examples below assume six active days, no manual ⟳ refreshes or commands, and the same ≈0.4% refresh cost throughout. They show arithmetic for chosen workloads, not a forecast of how many batches your teams will produce. The totals cover refreshes only; add group reading, timer setup and any webhook handling for the full cost.
+
+| Example | Assumed scheduled backups | Assumed event batches | Refresh subtotal |
+|---|---|---|---|
+| Quiet | 4/day × 6 days = 24 | 0 | 24 × 0.4% ≈ 9.6% |
+| Normal | 4/day × 6 days = 24 | 3/day × 6 days = 18 | (24 + 18) × 0.4% ≈ 16.8% |
+| Busy | 4/day × 6 days = 24 | 8/day × 6 days = 48 | (24 + 48) × 0.4% ≈ 28.8% |
+| Fewer backups, normal activity | 2/day × 6 days = 12 | 3/day × 6 days = 18 | (12 + 18) × 0.4% ≈ 12% |
+
+A quiet day has no event refreshes, but each scheduled backup you chose still costs a refresh. On busy days, chat length can increase the cost of each refresh as well as the number of batches. A constant rate is only a budgeting shortcut.
+
+### Keep it cheap and check your own cost
+
+Choose fewer backup times, set quiet hours or days, or put fewer teams on the page. You trade fresher or broader coverage for less reading. Use ⟳ when you need an update instead of adding scheduled backups you rarely need. Page commands can start substantial team work, so include that work when comparing costs.
+
+Ask your main bot to check subscription usage by routine and activity, or open the usage view. Compare a full week at your chosen settings with your usual workflow. Include group reading and command-triggered work, not just refresh routines. If the view shows shares of Grok Bot usage, multiply each share by Grok Bot's portion of the weekly limit to put it on the same basis as the figures above. Reading the campus can replace status requests, but there is no fixed saving percentage.
+
 ## Tech
 
 Next.js 16, React 19, three.js 0.187. No backend services in the demo.

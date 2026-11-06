@@ -220,8 +220,17 @@ language, and wait for an explicit yes:
   or days; a scheduled backup refresh is offered at the end, only if they want one;
 - what the buttons can do: refresh, questions and notes reach the leads right away; anything that publishes, sends outside,
   spends, deletes or approves one of those comes back to them in chat for a yes first;
-- that they can add a Vercel login on top (section 10.1).
+- that they can add a Vercel login on top (section 10.1);
+- the rough cost, from the section below.
 If they say no, stop. If they change something, adjust and confirm again.
+
+**Cost (tell them this before you build).** For about a dozen teams, one full refresh is ≈0.4% of a Super weekly limit. Scheduled backups, event batches and ⟳ refreshes each cost one full refresh when they actually run. Weekly ≈ (backup runs + event batches + ⟳ refreshes) × that refresh cost + commands + group reading. Page views cost no Grok Bot usage. Quiet hours or days skip the event timer; a scheduled backup still runs.
+
+Examples for six active days, refreshes only, with no manual ⟳ and no commands:
+- Quiet: 4 scheduled backups a day, no event batches → ≈9.6%.
+- Normal: 4 scheduled backups a day and 3 event batches a day → ≈16.8%.
+- Busy: 4 scheduled backups a day and 8 event batches a day → ≈28.8%.
+- Fewer backups, normal activity: 2 scheduled backups a day and 3 event batches a day → ≈12%.
 
 **After that yes, the user only does these things, and only when a tool raises them:**
 
@@ -506,7 +515,7 @@ Creating a dated one-off routine does not normally raise a confirmation card; if
 
 ### 7.3 Trigger 2: scheduled backup full refresh (the user's cadence)
 
-After the link is sent (section 9, step 7) you offer the user a scheduled full refresh, once. It is the backup when an event's timer is skipped, and it can run on quiet workdays. Create it only after they choose a
+After the link is sent (section 9, step 7) you offer the user a scheduled full refresh, once. It is the backup when an event's timer is skipped, and it can run on quiet workdays. Say that each backup time costs one full refresh per day, so fewer backups is cheaper. Create it only after they choose a
 cadence (every hour, every few hours, once a day, at the times they name): `UpdateRoutine` (create), name
 "Control center scheduled refresh", a cron trigger for that cadence in their time zone, and the prompt "Scheduled refresh" in
 section 8. Creating it shows the routine approval card (**U4**). If they say no, create nothing. When they ask to change the
@@ -663,7 +672,7 @@ Run these yourself; the user doesn't need to test anything.
    rotate `CONTROL_ACCESS_TOKEN` (new file, `create_project_env` upsert, redeploy) and send the new one.
 
 7. **Offer the scheduled refresh (U4), once,** in the same 1:1 chat right after the link: "Do you also want me to refresh the whole
-   page on a schedule? For example every hour, every few hours, or once a day. That run is the backup when a team event falls in your quiet hours or days, and it can run on quiet workdays. Tell me how often, or say no." Create the
+   page on a schedule? For example every hour, every few hours, or once a day. That run is the backup when a team event falls in your quiet hours or days, and it can run on quiet workdays. Each backup time costs one full refresh a day, so fewer backups is cheaper. Tell me how often, or say no." Create the
    routine only after they name a cadence (section 7.3). Don't ask again unless they bring it up.
 
 **Final check list (all must be true before step 6):**
