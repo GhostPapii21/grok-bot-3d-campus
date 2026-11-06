@@ -1,6 +1,6 @@
 ---
 name: Build and run a 3D control center for my bot teams
-description: Use when the user wants a private live web page (3D campus, one room per team) showing what all their Grok Bot teams and agents are doing, what waits for their approval, scheduled routines and usage, with buttons that send commands back to you. Every update is a full refresh, from one of three triggers: batched team events, a scheduled routine at the user's chosen cadence, or the page's refresh button. You, the user's MAIN Grok Bot, first show the user a short plan and get one yes, then do the steps yourself; the user also approves connections and routine cards and pastes the routine's webhook URL and key on the app's private /setup page (you never see the key).
+description: Use when the user wants a private live web page (3D campus, one room per team) showing what all their Grok Bot teams and agents are doing, what waits for their approval, scheduled routines and usage, with buttons that send commands back to you. Every update is a full refresh, from one of three triggers: a dated one-off timer about ten minutes after a significant team event (later events share the pending timer; none is created in quiet hours or days), a scheduled backup at the user's chosen cadence, or the page's refresh button. You, the user's MAIN Grok Bot, first show the user a short plan and get one yes, then do the steps yourself; the user also approves connections and routine cards and pastes the routine's webhook URL and key on the app's private /setup page (you never see the key).
 ---
 
 # Build and run a 3D control center for my bot teams
@@ -215,12 +215,22 @@ language, and wait for an explicit yes:
 - a new Vercel project `control-center-xxxx` and a private Blob store in their Vercel account; nothing existing is touched;
 - what the page will show (the list under "What goes on the site" above) and that it opens only with a private link;
 - that you read the team chats and transcripts read-only, and ask each lead once to add you to its group if you aren't in it;
-- the routines you'll create: "Control center commands" (webhook for the page's buttons) and a batch refresh every 10 minutes
-  in their waking hours; a scheduled refresh is offered at the end, only if they want one;
+- the routines you'll create: "Control center commands" (webhook for the page's buttons) now, and on a significant team
+  event, when no timer is pending, one dated one-off routine for ten minutes later, unless that time falls in their quiet hours
+  or days; a scheduled backup refresh is offered at the end, only if they want one;
 - what the buttons can do: refresh, questions and notes reach the leads right away; anything that publishes, sends outside,
   spends, deletes or approves one of those comes back to them in chat for a yes first;
-- that they can add a Vercel login on top (section 10.1).
+- that they can add a Vercel login on top (section 10.1);
+- the rough cost, from the section below.
 If they say no, stop. If they change something, adjust and confirm again.
+
+**Cost (tell them this before you build).** For about a dozen teams, one full refresh is ≈0.4% of a Super weekly limit. Scheduled backups, event batches and ⟳ refreshes each cost one full refresh when they actually run. Weekly ≈ (backup runs + event batches + ⟳ refreshes) × that refresh cost + commands + group reading. Page views cost no Grok Bot usage. Quiet hours or days skip the event timer; a scheduled backup still runs.
+
+Examples for six active days, refreshes only, with no manual ⟳ and no commands:
+- Quiet: 4 scheduled backups a day, no event batches → ≈9.6%.
+- Normal: 4 scheduled backups a day and 3 event batches a day → ≈16.8%.
+- Busy: 4 scheduled backups a day and 8 event batches a day → ≈28.8%.
+- Fewer backups, normal activity: 2 scheduled backups a day and 3 event batches a day → ≈12%.
 
 **After that yes, the user only does these things, and only when a tool raises them:**
 
@@ -228,9 +238,9 @@ If they say no, stop. If they change something, adjust and confirm again.
 |---|---|---|---|
 | U0 | Say yes to the plan above | Before section 1 | Their data goes to their account; they decide. |
 | U1 | Approve the Vercel connector (connect card), and the team consent link if one appears | Section 4, only if Vercel isn't connected with access to create projects | Sign-in to a third-party account. Only the user can grant it. |
-| U2 | Approve the routine cards, if they appear: the webhook routine and the batch refresh routine | Sections 6 and 7 | Creating a routine may ask the user to confirm. That card is shown by the tool, not by you. |
+| U2 | Approve a routine card, if a tool raises one: the webhook routine, or a dated one-off refresh timer | Section 6, and whenever a one-off timer is created | Creating a routine may ask the user to confirm. That card is shown by the tool, not by you. Creating a dated one-off routine does not normally raise a confirmation card; if one appears, approve it. Deleting one is the same. |
 | U3 | Copy the webhook **URL** and the **sender key** from the routine panel and paste both on the app's private `/setup` page (the link you send) | Section 6 | The routine tool never returns the sender key to you, only the user can open the routine panel, and you must never read, copy or set the key. |
-| U4 | Optional: say how often the page should also refresh on a schedule (every hour, every few hours, once a day), then approve that routine's card | Section 9, step 7 | The schedule is the user's choice, and a new routine may ask the user to confirm. If they say no, there is no scheduled routine. |
+| U4 | Optional: say how often the page should also refresh on a schedule (every hour, every few hours, once a day), then approve that routine's card | Section 9, step 7 | The schedule is the user's choice, and a new routine may ask the user to confirm. If they say no, there is no scheduled routine. This backup runs when an event falls in quiet hours or days, and it can run on quiet workdays. |
 
 Everything else is yours and is covered by the plan: discovering the org, joining the chats, naming the project, creating it,
 storage, secrets, env vars, deploys, the test, and sending the link. Don't ask separately about each of these. If something
@@ -294,9 +304,9 @@ For each group from section 1 where you are **not** a member, in this order:
 3. Do not wait for replies. Continue with section 3; groups that add you later just start producing room turns.
 
 **Silence rule for every team room, from now on:** joining for the page gives you no reason to speak.
-When a room turn arrives, mark the data dirty if something relevant happened (section 7, trigger 1), then end the
+When a room turn arrives, if something relevant happened, mark the oldest unflushed change and schedule the one-off timer when none is pending (section 7, trigger 1), then end the
 turn **without** `SendToUser`, unless the user addresses you in that room or you are @-mentioned, in which case
-answer as you normally would. Never post page updates, summaries or "I'm watching" messages in a room.
+answer as you normally would. Never post page updates, summaries or "I'm watching" messages in a room. Never push or refresh during the room turn.
 
 **Check:** for each team you are either a member of its group, or the team is marked `coverage: "transcripts"`.
 
@@ -447,9 +457,9 @@ There are exactly three triggers, and all three run the same procedure:
 
 | # | Trigger | What happens |
 |---|---|---|
-| 1 | Something significant happens in a team | The room turn only marks the data dirty. The batch routine runs the full refresh once the mark is 10+ minutes old. |
-| 2 | A scheduled time the user chose | The scheduled routine runs the full refresh. |
-| 3 | The user presses ⟳ on the page | The webhook routine runs the full refresh right away. |
+| 1 | Something significant happens in a team | The room turn records the oldest unflushed change and, if no timer is pending and the time is outside quiet hours or days, creates one dated one-off routine for ten minutes later. Later events share that timer. The timer runs the full refresh, then deletes itself and its pending-timer state file. |
+| 2 | A scheduled time the user chose | The scheduled backup routine runs the full refresh. It can run on quiet workdays. |
+| 3 | The user presses ⟳ on the page | The webhook routine runs the full refresh right away, subject to the five-minute dedupe. |
 
 ### 7.1 The shared full-refresh procedure
 
@@ -458,12 +468,12 @@ so there is only one procedure to keep correct. Create the state folder too: `mk
 
 ```
 # Full refresh of the control center (one procedure for every trigger)
-Every update is a FULL refresh, whatever triggered it (team-event batch, scheduled routine, or the page's refresh button).
+Every update is a FULL refresh, whatever triggered it (one-off event timer, scheduled backup, or the page's refresh button).
 Read-only: never message any team, lead, worker, group or the user. The live page is the output.
 App folder: <~/control-center/app>. Data file: <~/control-center/data.json>. Time zone: <IANA zone>.
 
 0. Dedupe: if ~/control-center/state/last_full_refresh holds a time less than 5 minutes ago, stop here.
-   (Leave state/dirty_since in place; the next batch run picks it up.)
+   (Leave state/dirty_since in place. The next scheduled backup picks it up. If there is no backup, a later eligible event or a manual refresh does.)
 1. Roster sync: re-read every bot (teammates list, plus ListAgents if you have it) and every group, as in the skill's
    section 1. New bot -> add it to its team's members (short name, role from its description). New group -> new TEAMS entry
    (it gets its own room). Gone -> remove it and its owner names. Renamed -> update it. Closed or frozen -> set the status.
@@ -476,32 +486,36 @@ App folder: <~/control-center/app>. Data file: <~/control-center/data.json>. Tim
 5. Usage: CheckSubscriptionUsage with breakdown ["bot"], limit 20 -> USAGE, each team's usage, botUsage (new bots too, once listed).
 6. Set UPDATED (user's time zone), run ./push-data.sh <data file> in the app folder (no redeploy), and check that
    GET /api/data shows the new UPDATED.
-7. Write the time (date -Iseconds) to ~/control-center/state/last_full_refresh and delete ~/control-center/state/dirty_since.
+7. Only after step 6's check succeeds: write the time (date -Iseconds) to ~/control-center/state/last_full_refresh and delete ~/control-center/state/dirty_since.
+   If the push failed, leave dirty_since in place. The scheduled backup picks it up.
 ```
 
-### 7.2 Trigger 1: team events, batched (economical)
+### 7.2 Trigger 1: team events, one dated one-off timer
 
 On every room turn in a team group, decide if something significant happened: a task started or finished, an item now waits
 for the user's approval or answer, the user made a decision, a status or goal changed, a routine failed, or a new bot or team
 showed up. Also count a lead's 1:1 reply about a command from the page, and a failure of one of your own routines.
 
-- **If yes, only mark it.** Do not edit the data, do not push, and do not refresh on the spot:
-  ```bash
-  [ -f ~/control-center/state/dirty_since ] || date -Iseconds > ~/control-center/state/dirty_since
-  ```
-  The file keeps the time of the **oldest** unflushed event, so a burst of messages is still one mark.
-- **If no,** do nothing. Either way, end the turn silently (silence rule, section 2).
+Do not edit the data, do not push, and do not refresh during the room turn. If nothing significant happened, end the turn
+silently (silence rule, section 2). If something significant happened, do the following in that room turn:
 
-**The batch routine** flushes the marks. Create it now with `UpdateRoutine` (create): name "Control center batch refresh",
-a cron trigger every 10 minutes during the user's waking hours in their time zone (from memory; if you don't know them,
-use 08:00–23:50, for example `*/10 8-23 * * *`), and the prompt "Batch refresh" in section 8. If a confirm card appears,
-that is **U2**. Each run checks the mark: no mark, or a mark less than 10 minutes old, means it exits doing nothing and
-messages no one. A mark 10+ minutes old means it runs the full refresh (7.1), which deletes the mark. So an event reaches
-the page about 10 to 20 minutes after it happened, with one refresh per burst instead of one per message.
+1. Write `~/control-center/state/dirty_since` only if it is missing. The file keeps the time of the **oldest** unflushed change, so later events stay one mark:
+   ```bash
+   [ -f ~/control-center/state/dirty_since ] || date -Iseconds > ~/control-center/state/dirty_since
+   ```
+2. Read `~/control-center/state/flush_timer`. If it records a future timer, stop. Leave that timer where it is. Later events share it; they do not restart it.
+3. Otherwise calculate T = now + ten minutes in the user's time zone. Quiet hours and quiet days are the ones the user has already given you. If they haven't, quiet hours are 23:50–08:00 in their time zone and there is no quiet day. If T falls in their quiet hours or days, keep `dirty_since` and skip timer creation. Their scheduled backup refresh catches up. If there is no backup, this waits until a later significant event whose T is outside quiet hours or days, or until they press ⟳.
+4. Otherwise remove only a stale campus timer named by this state file, never an unrelated routine. Create a dated one-off routine with `UpdateRoutine` (create): name "Control center one-off refresh", at the exact time T, schedule `M H D MON *` (that minute, hour, day of month and month, and `*` for the weekday). Verify that the tool labels it **Once**. A bare cron expression is not proof of one-off semantics. If a confirmation card appears, that is **U2**: respect it, end the turn, and continue when it is saved.
+5. Save the returned routine id and T's ISO timestamp in `~/control-center/state/flush_timer` (first line the id, second line T). Later events do not restart the timer.
+6. Use the prompt "One-off timer" in section 8. It runs `~/control-center/FULL_REFRESH.md`, including the five-minute dedupe, then deletes this timer routine and `~/control-center/state/flush_timer`. If the refresh was skipped or failed, it keeps `dirty_since` and the scheduled backup catches up. It deletes the routine and `flush_timer` even when the dedupe skips the refresh. It messages no team. A failure is reported only in the private chat, and only if the push fails twice.
 
-### 7.3 Trigger 2: scheduled full refresh (the user's cadence)
+End the turn silently (silence rule, section 2). The scheduled refresh the user chose (section 7.3) is the backup. With no significant events, no event timer runs. A scheduled backup can still run on a quiet workday.
 
-After the link is sent (section 9, step 7) you offer the user a scheduled full refresh, once. Create it only after they choose a
+Creating a dated one-off routine does not normally raise a confirmation card; if one appears, approve it. Deleting one is the same.
+
+### 7.3 Trigger 2: scheduled backup full refresh (the user's cadence)
+
+After the link is sent (section 9, step 7) you offer the user a scheduled full refresh, once. It is the backup when an event's timer is skipped, and it can run on quiet workdays. Say that each backup time costs one full refresh per day, so fewer backups is cheaper. Create it only after they choose a
 cadence (every hour, every few hours, once a day, at the times they name): `UpdateRoutine` (create), name
 "Control center scheduled refresh", a cron trigger for that cadence in their time zone, and the prompt "Scheduled refresh" in
 section 8. Creating it shows the routine approval card (**U4**). If they say no, create nothing. When they ask to change the
@@ -515,17 +529,17 @@ dedupe (7.1, step 0).
 The page reloads `/api/data` immediately and then polls every 20 s for up to 6 minutes until `UPDATED` changes, so finish the
 push within a few minutes.
 
-**Commands from the page are not batched.** An approval, rejection, question or other command sent from the page reaches you
+**Commands from the page go out at once.** An approval, rejection, question or other command sent from the page reaches you
 at once through the webhook routine, and you pass it to the team's lead at once, one message per lead (section 8, case B).
 Lines that publish, send outside, spend, delete or approve one of those wait for the user's yes in your private chat first.
 Then you send the user one short line in your private chat saying what went to whom. Handling a command never edits the data
-file: case B only writes `state/dirty_since` if it's missing. The page shows the result at the next batch refresh
-(10 to 20 minutes during the user's waking hours), or right away if the user presses ⟳.
+file. After the lines are handled, case B runs the same event mark and one-off timer procedure as section 7.2 (write
+`state/dirty_since` only if missing, then create the timer only when none is pending and T is outside quiet hours or days).
+The page shows the result when that timer runs, about ten minutes after the oldest unflushed change, or at the next scheduled backup if no timer was created, or right away if the user presses ⟳.
 
 **Never** refresh on a room turn, and never re-read usage outside a full refresh.
 
-**Check:** `~/control-center/FULL_REFRESH.md` and `~/control-center/state/` exist, and "Control center batch refresh" shows in
-`<automation_status>` with its next run. The scheduled routine comes later (section 9, step 7).
+**Check:** `~/control-center/FULL_REFRESH.md` and `~/control-center/state/` exist, and the one-off timer prompt in section 8 is the text you put on that routine. With no significant events, no event timer is pending, including on a quiet day. The scheduled backup comes later (section 9, step 7).
 
 ---
 
@@ -560,8 +574,8 @@ B) otherwise text starts "N request(s) from the control center:" followed by num
      - "Approved — <team>: <item> [<id>]" / "Rejected — <team>: <item> [<id>]": send the decision to that team's lead,
        word for word plus "(decided by the user in the control center)", or "(confirmed by the user in chat)" after a yes.
      - "Question — <team>: <item> [<id>] — <question>": send the question to the lead. Keep the item pending.
-     - "What's the status? — <team>: <task or bot>": ask the lead. When the answer arrives, only mark the
-       data dirty (as below); the next full refresh shows it.
+     - "What's the status? — <team>: <task or bot>": ask the lead. When the answer arrives, mark the event
+       and schedule the one-off timer (section 7.2); the next full refresh shows it.
      - "Note to the team lead — <team>: …": forward the note as written.
      - "Pause task / Resume / Run now — <team>: <owner> / <routine> [<id>]": if the routine is yours, do it with
        UpdateRoutine; otherwise forward it to the owner's lead. ("Run now" of a routine that publishes or sends outside
@@ -569,20 +583,25 @@ B) otherwise text starts "N request(s) from the control center:" followed by num
      - "Pause all tasks — <team>: <owner> [<ids>]": same as Pause task, for each id.
      - "Cancel task — …" / "Change task — … — <change>" (after the yes): same way; yours with UpdateRoutine, others via the lead.
    Do NOT edit the data file for a command: no removing pending items, no activity lines, no push. After all lines,
-   only mark the data dirty ([ -f ~/control-center/state/dirty_since ] || date -Iseconds > ~/control-center/state/dirty_since);
-   the next full refresh picks up the change.
+   run the same event mark and one-off timer as a significant team event:
+   - Write ~/control-center/state/dirty_since only if it is missing (`[ -f ~/control-center/state/dirty_since ] || date -Iseconds > ~/control-center/state/dirty_since`).
+   - If ~/control-center/state/flush_timer records a future timer, leave it. Do not create another and do not move it.
+   - Otherwise, if now + ten minutes in the user's time zone falls in their quiet hours or days, keep dirty_since and create no timer. If there is no scheduled backup, the change waits for a later eligible event or for ⟳.
+   - Otherwise remove only a stale timer named in that state file, create one dated one-off routine for that time (name "Control center one-off refresh", schedule M H D MON *, and check the tool labels it Once), and save its routine id and that ISO time in flush_timer (id on the first line, T on the second).
+   Creating a dated one-off routine does not normally raise a confirmation card; if one appears, approve it. The next full refresh picks up the change.
 
 Results go to: the team leads named in each line, in Grok Bot (1:1 messages, one per lead). Then the user, in the private
 chat, gets ONE short line saying what went to whom, plus the confirm-first message when there is one.
 A refresh (case A) sends the user nothing. When there is nothing to do, send nothing.
 ```
 
-**Batch refresh** ("Control center batch refresh", cron every 10 min during waking hours, for example `*/10 8-23 * * *`, section 7.2):
+**One-off timer** ("Control center one-off refresh", one dated run at T, schedule `M H D MON *`, labeled Once, section 7.2):
 
 ```
-Control center batch refresh. Read-only: message no one, and send nothing when there is nothing to do.
-If ~/control-center/state/dirty_since does not exist, stop. If the time in it is less than 10 minutes ago, stop.
-Otherwise run the full refresh in ~/control-center/FULL_REFRESH.md, step by step. It deletes dirty_since at the end.
+Control center one-off refresh. Read-only: message no team, lead, worker or group.
+Run the full refresh in ~/control-center/FULL_REFRESH.md, step by step, including its five-minute dedupe.
+If that refresh is skipped or the push fails, leave ~/control-center/state/dirty_since in place. The scheduled backup catches up.
+Then delete this timer routine and delete ~/control-center/state/flush_timer, including when the refresh was skipped for the dedupe.
 Tell the user in the private chat only if the push fails twice.
 ```
 
@@ -605,9 +624,13 @@ Run these yourself; the user doesn't need to test anything.
    your own webhook routine (case A) and messages no one. In that routine run, confirm the push succeeded; then from your main
    turn, `GET /api/data` and check that `UPDATED` is newer than before and that `state/last_full_refresh` was rewritten.
    (Only one refresh per 5 minutes is accepted; a 429 means wait.)
-1b. **Batch test (trigger 1).** Write a mark dated 15 minutes ago: `date -Iseconds -d '-15 min' > ~/control-center/state/dirty_since`.
-   After the batch routine's next run (at most 10 minutes, during waking hours), `UPDATED` is newer and `dirty_since` is gone.
-   You don't have to wait for it before sending the link; check it on your next turn, and fix the batch prompt if it failed.
+1b. **Event-timer check (trigger 1).** Mark one significant event and follow section 7.2.
+   Write `dirty_since` only if it is missing. If `flush_timer` already records a future timer, leave it.
+   If it does not, and T is outside quiet hours or days, create the dated one-off.
+   Creating a dated one-off routine does not normally raise a confirmation card; if one appears, approve it.
+   Confirm the routine id and T's ISO timestamp are in `~/control-center/state/flush_timer`, and that the tool labels the routine Once.
+   After T, confirm `UPDATED` is newer, `dirty_since` is gone after a successful refresh, the routine is gone, and `flush_timer` is gone.
+   If T falls in quiet hours or days, confirm `dirty_since` is still there and that you created no timer, then run this check at the next eligible time before sending the link.
 2. **Command path test without side effects.** Do not press Approve on a real item. The refresh test already proves
    page → webhook → you → push. `POST /api/send {"dryRun":true}` → `configured: true` proves the command path is wired.
 3. **Visual check against the reference (required before sending the link).** Screenshot your own deployment:
@@ -632,8 +655,8 @@ Run these yourself; the user doesn't need to test anything.
 4. **Leak check.** `git -C ~/control-center/app grep -nE "(SESSION_SECRET|CONTROL_ACCESS_TOKEN|ADMIN_KEY|WEBHOOK_KEY)=."` finds
    nothing (if it's a repo); `curl -s -b <jar> $CC_URL/ | grep -c "$CONTROL_ACCESS_TOKEN"` prints 0.
 5. **Remember** with `UpdateMemory` (no secrets): project id and name, Vercel team, Blob store name, the routine names
-   (webhook, batch refresh, and the scheduled refresh once it exists), app folder, data file, `~/control-center/FULL_REFRESH.md`,
-   the state folder, and these rules: "every update is a full refresh; on a room turn only mark state/dirty_since, never push;
+   (webhook, a one-off refresh timer when one is pending, and the scheduled backup once it exists), app folder, data file, `~/control-center/FULL_REFRESH.md`,
+   the state folder, and these rules: "every update is a full refresh; on a room turn write state/dirty_since only if missing and create one dated one-off timer when none is pending, never push;
    never post in rooms for the page".
 6. **Send the link.** Build `https://<domain>/<CONTROL_ACCESS_TOKEN>` from the files on the box. Send it in your **1:1 chat only**,
    once (this is the second and last time, after the setup link in section 6), with this message (translate to the user's language):
@@ -643,13 +666,13 @@ Run these yourself; the user doesn't need to test anything.
    > Each team has a room. Approvals you make there come to me and I pass them to the leads; if one would publish, send
    > something outside, spend or delete, I'll check with you here first. ⟳ asks me to refresh everything.
    > I read the team chats quietly and keep it updated. I don't post anything there.
-   > When something important happens in a team, the page updates within about 10 to 20 minutes during your waking hours, all at once.
+   > When something important happens in a team, I set one timer for about ten minutes later, and the page updates all at once when it runs. Further events share that timer. If that time is in your quiet hours or days, I leave the change for the scheduled refresh, if you asked for one.
 
    Never send the link in a group, never save it in memory or notes, and never repeat it later. If the user loses it,
    rotate `CONTROL_ACCESS_TOKEN` (new file, `create_project_env` upsert, redeploy) and send the new one.
 
 7. **Offer the scheduled refresh (U4), once,** in the same 1:1 chat right after the link: "Do you also want me to refresh the whole
-   page on a schedule? For example every hour, every few hours, or once a day. Tell me how often, or say no." Create the
+   page on a schedule? For example every hour, every few hours, or once a day. That run is the backup when a team event falls in your quiet hours or days, and it can run on quiet workdays. Each backup time costs one full refresh a day, so fewer backups is cheaper. Tell me how often, or say no." Create the
    routine only after they name a cadence (section 7.3). Don't ask again unless they bring it up.
 
 **Final check list (all must be true before step 6):**
@@ -657,8 +680,8 @@ Run these yourself; the user doesn't need to test anything.
 - [ ] `/api/data` without the cookie → 404; with it → JSON, `Cache-Control: no-store`.
 - [ ] `/api/admin/data` with a wrong key → 404; `push-data.sh` → 200.
 - [ ] `/api/send {"dryRun":true}` → `configured: true`; the refresh test changed `UPDATED` and rewrote `state/last_full_refresh`.
-- [ ] `~/control-center/FULL_REFRESH.md` exists, and the webhook and batch routines are saved and point to it (the batch routine's
-      next run shows in `<automation_status>`). A batch-test mark is in `state/dirty_since` (step 1b).
+- [ ] `~/control-center/FULL_REFRESH.md` exists, the webhook routine is saved and points to it, and the one-off timer prompt is the one in section 8.
+      The event-timer check (step 1b) passed: the routine was labeled Once, and after it ran `UPDATED` advanced, `dirty_since` cleared, the routine was gone and `flush_timer` was gone. If that time fell in quiet hours or days, the check was run at the next eligible time.
 - [ ] Every team is covered (member of its group, or `coverage: "transcripts"`).
 - [ ] Every bot in the roster (section 1) is a lead or member in `data.json`, and every team has a room on the page.
 - [ ] The visual check in step 3 passed at 1440×900, 998×1024 and 390×844, plus the open Fold at 884×1104 (tall-screen campus, portrait room).
@@ -740,7 +763,7 @@ type DataShape = {
 | `POST /api/send {kind:"refresh"}` | once per 5 min, stored in Blob (shared by all instances) |
 | Client after ⟳ | polls every 20 s for up to 6 min until `UPDATED` changes |
 | Full refresh | skipped when the last one finished less than 5 min ago (`state/last_full_refresh`) |
-| Batch routine | every 10 min in waking hours (`*/10 8-23 * * *`); refreshes only when `state/dirty_since` is 10+ min old |
+| Event timer | one dated one-off, ten minutes after the oldest unflushed change, only when none is already pending and the time is outside quiet hours or days; after the run it deletes itself and `state/flush_timer`. A skipped or failed refresh keeps `state/dirty_since` for the scheduled backup |
 | Client normally | every 60 s and when the tab becomes visible |
 | Session cookie | 60 days; rotating `CONTROL_ACCESS_TOKEN` signs out every device |
 
