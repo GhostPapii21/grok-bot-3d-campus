@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { PALETTE } from "../lib/theme";
 import { roomGeo, agentsOf, W3, ctrlFor, qpt, PLAZA, TREES, campusGrow } from "./ControlCenter";
+import { dressThemedRoom } from "./themeProps";
 
 const P = PALETTE;
 type Pick = { team: string; what?: string; member?: number };
@@ -305,6 +306,7 @@ export default function Campus3D(props: any) {
         };
         desk(g.lead.x, g.lead.z, 1.15, true);
         g.seats.forEach((s: any) => desk(s.x, s.z, Math.min(0.9, (g.w - 1) / Math.max(1, g.seats.length) - 0.12), false));
+        const spins = fz ? [] : dressThemedRoom(G, tm.id, g, mobile, (o) => pick(o));
         // status lamp
         const lampMat = own(new THREE.MeshBasicMaterial({ color: P.success }));
         const lamp = new THREE.Mesh(geo.sphLo, lampMat); lamp.scale.setScalar(0.07); lamp.position.set(g.w / 2 - 0.14, H + 0.22, -g.d / 2 + 0.06); G.add(lamp);
@@ -321,7 +323,7 @@ export default function Campus3D(props: any) {
           A.g.traverse((o) => { if ((o as any).isMesh) { o.userData.pick = { team: tm.id, what: "person", member: a.i }; pickables.push(o); } });
           return A;
         });
-        rooms.push({ tm, G, g, walls, onWall, edge, freshRing, lampMat, glowMat, lamp, glow, cover, ags, screens, idx, fz, anchor: new THREE.Vector3(C.x, H + 0.62, C.z - g.d / 2) });
+        rooms.push({ tm, G, g, walls, onWall, edge, freshRing, lampMat, glowMat, lamp, glow, cover, ags, screens, idx, fz, spins, anchor: new THREE.Vector3(C.x, H + 0.62, C.z - g.d / 2) });
       });
     };
     build();
@@ -517,6 +519,7 @@ export default function Campus3D(props: any) {
         R.lampMat.color.set(col); R.glowMat.color.set(col); const pulse = R.fz ? 0.25 : 0.45 + 0.12 * Math.sin(t * 3 + R.idx) + (al.length ? 0.2 * Math.max(0, Math.sin(t * 7)) : 0); R.glow.scale.setScalar(pulse * 0.75);
         R.screens.forEach((s: THREE.Mesh, k: number) => { (s.material as THREE.MeshBasicMaterial).opacity = R.fz ? 0.5 : 0.65 + 0.25 * Math.sin(t * 3 + k * 1.3 + R.idx); });
         const tv = (R.G.userData as any).tv; if (tv && tv.n > 1) { const k = Math.floor((t + R.idx * 1.3) / 4.5); if (k !== tv.k) { tv.k = k; tv.drawTv(k); } }
+        if (R.spins) R.spins.forEach((s: { obj: THREE.Object3D; speed: number }) => { s.obj.rotation.y = t * s.speed; });
         // agents
         R.ags.forEach((A: any) => {
           const a = A.a; const sd = A.seed;

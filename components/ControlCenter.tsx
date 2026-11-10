@@ -4,6 +4,7 @@ import { useGrokTheme } from "../lib/theme";
 import { TZ } from "../lib/tz";
 import { PLACEHOLDER, sectionsById } from "../lib/sections";
 import Campus3D from "./Campus3DLazy";
+import { themeFloorBg, ThemeRoomExtras } from "./themeProps";
 
 // ===== DATA (a refresh routine edits only these constants) =====
 // UPDATED: string shown in the HUD.
@@ -2570,7 +2571,8 @@ function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h:
     </div>
   );
   const rightWall = face(Lw, HH, `translate3d(${W2 + ofs / 2}px, ${-HH / 2}px, 0) rotateY(${-(90 - SP)}deg)`, { background: "linear-gradient(270deg, #1c1c1e, #19191b)", transformStyle: "preserve-3d", borderBottom: "14px solid #2a2a2c" }, door);
-  const floor = face(G.W + 2 * ofs, G.D, "rotateX(90deg)", { clipPath: `polygon(${ofs}px 0, ${ofs + G.W}px 0, 100% 100%, 0 100%)`, background: `repeating-linear-gradient(0deg, transparent 0 89px, #262628 89px 91px), repeating-linear-gradient(90deg, transparent 0 89px, #262628 89px 91px), ${hexMix(tc, 0.05, "#151517")}` });
+  const floorFallback = `repeating-linear-gradient(0deg, transparent 0 89px, #262628 89px 91px), repeating-linear-gradient(90deg, transparent 0 89px, #262628 89px 91px), ${hexMix(tc, 0.05, "#151517")}`;
+  const floor = face(G.W + 2 * ofs, G.D, "rotateX(90deg)", { clipPath: `polygon(${ofs}px 0, ${ofs + G.W}px 0, 100% 100%, 0 100%)`, background: themeFloorBg(team.id, floorFallback) });
   const ceiling = face(G.W, G.D, `translateY(${-HH}px) rotateX(-90deg)`, { background: "#121214" }, <>
     <div style={{ position: "absolute", left: "22%", top: "35%", width: 120, height: 16, borderRadius: 8, background: "#2a2a2c" }} />
     <div style={{ position: "absolute", right: "22%", top: "35%", width: 120, height: 16, borderRadius: 8, background: "#2a2a2c" }} />
@@ -2712,6 +2714,7 @@ function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h:
         {leadBlob}{leadDesk}{tray}{monitor("lm", monX, -ldH, zl + 8, 90, 58, idx % 6, !fz)}{trayBadge}{bubble}
         {stand}
         {desks}
+        <ThemeRoomExtras id={team.id} t={t} portrait={portrait} W={G.W} D={G.D} />
       </div>
 
       {/* zoomed board */}
