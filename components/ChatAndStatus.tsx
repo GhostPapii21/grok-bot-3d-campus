@@ -1,11 +1,23 @@
 "use client";
+import type { CSSProperties } from "react";
 import { bots, botsByRoomId, chatHref, type CampusBot } from "../lib/bots";
-import { formatStatusTime, isPosted, itemsForRoom, useCampusStatus, type StatusItem } from "../lib/status";
+import {
+  boardsForRoom,
+  formatLastRun,
+  formatStatusTime,
+  hasPostedBoard,
+  itemsForRoom,
+  useCampusStatus,
+  usePostedCount,
+  waitingMessage,
+  type BotBoard,
+  type StatusItem,
+} from "../lib/status";
 import { useGrokTheme } from "../lib/theme";
 
-export { chatHref };
+export { chatHref, usePostedCount };
 
-function ChatButton(props: { bot: CampusBot }) {
+export function ChatButton(props: { bot: CampusBot; large?: boolean }) {
   const th = useGrokTheme();
   const href = chatHref(props.bot.id);
   return (
@@ -15,9 +27,9 @@ function ChatButton(props: { bot: CampusBot }) {
         style={{
           display: "inline-block",
           font: "inherit",
-          fontSize: 13,
+          fontSize: props.large ? 16 : 13,
           fontWeight: 700,
-          padding: "7px 14px",
+          padding: props.large ? "10px 18px" : "7px 14px",
           borderRadius: 999,
           border: "none",
           background: th.fill.accent,
@@ -72,8 +84,9 @@ export function HqBotRoster() {
 
 function stateColor(state: string, th: any) {
   const s = state.toLowerCase();
-  if (s === "in progress") return th.text.accent;
-  if (s === "blocked") return th.text.danger;
+  if (s === "in progress" || s === "enabled") return th.text.accent;
+  if (s.includes("blocked") || s.includes("failed")) return th.text.danger;
+  if (s.includes("paused") || s.includes("waiting")) return th.text.warning;
   return th.text.tertiary;
 }
 
@@ -82,7 +95,7 @@ function StatusRows(props: { items: StatusItem[]; compact?: boolean; onOpenRoom?
   return (
     <div>
       {props.items.map((item) => {
-        const posted = isPosted(item);
+        const posted = item.state !== "no update" && item.task !== waitingMessage(item.bot) && item.task !== "Nothing running right now";
         const when = formatStatusTime(item.updatedAt);
         return (
           <div key={item.bot} style={{ padding: props.compact ? "7px 0" : "9px 0", borderBottom: `1px solid ${th.border.weak}` }}>
@@ -105,14 +118,63 @@ function StatusRows(props: { items: StatusItem[]; compact?: boolean; onOpenRoom?
   );
 }
 
+export function BotBoardView(props: { board: BotBoard }) {
+  const th = useGrokTheme();
+  const { board } = props;
+  const posted = hasPostedBoard(board);
+  const sec: CSSProperties = { fontSize: 11.5, fontWeight: 800, letterSpacing: 0.4, color: th.text.tertiary, margin: "10px 0 6px" };
+  const empty: CSSProperties = { fontSize: 13, color: th.text.tertiary, fontStyle: "italic" };
+  return (
+    <div style={{ background: "#f4f1e6", color: "#1a1a1a", border: "2px solid #d4cbb0", borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+        <b style={{ fontSize: 16 }}>{board.bot}</b>
+        <span style={{ fontSize: 11.5, color: "#666" }}>Room board</span>
+      </div>
+      {!posted ? (
+        <div style={{ fontSize: 14, color: "#555", padding: "8px 0 4px" }}>{waitingMessage(board.bot)}</div>
+      ) : (
+        <>
+          <div style={sec}>WORKING ON NOW</div>
+          {board.workingOn.length ? board.workingOn.map((w, i) => (
+            <div key={i} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 13.5, lineHeight: "18px" }}>{w.task}</div>
+              <div style={{ fontSize: 11.5, color: "#555" }}><b style={{ textTransform: "uppercase" }}>{w.state}</b>{w.updatedAt ? ` · ${formatStatusTime(w.updatedAt)}` : ""}</div>
+            </div>
+          )) : <div style={empty}>Nothing running right now</div>}
+          <div style={sec}>ROUTINES</div>
+          {board.routines.length ? board.routines.map((r, i) => (
+            <div key={i} style={{ marginBottom: 7, paddingBottom: 6, borderBottom: "1px solid #e4dcc8" }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700 }}>{r.name}</div>
+              <div style={{ fontSize: 12, color: "#444" }}>{r.schedule}</div>
+              <div style={{ fontSize: 11.5, color: "#555" }}><b style={{ textTransform: "uppercase" }}>{r.state}</b> · last run {formatLastRun(r.lastRun)}</div>
+            </div>
+          )) : <div style={empty}>No routines</div>}
+          <div style={sec}>OPEN TASKS</div>
+          {board.openTasks.length ? board.openTasks.map((t, i) => (
+            <div key={i} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 13.5, lineHeight: "18px" }}>{t.task}</div>
+              <div style={{ fontSize: 11.5, color: "#555" }}><b style={{ textTransform: "uppercase" }}>{t.state}</b>{t.updatedAt ? ` · ${formatStatusTime(t.updatedAt)}` : ""}</div>
+            </div>
+          )) : <div style={empty}>No open tasks</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function WorkingOnBoard(props: { roomId: string; roomOwner?: string }) {
   const th = useGrokTheme();
   const file = useCampusStatus();
-  const items = itemsForRoom(file, props.roomId, props.roomOwner);
+  const boards = boardsForRoom(file, props.roomId, props.roomOwner);
   return (
-    <div style={{ background: th.bg.base, border: `1px solid ${th.border.subtle}`, borderRadius: 14, padding: "12px", marginBottom: 10 }}>
-      <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: 0.4, color: th.text.tertiary, marginBottom: 4 }}>WHAT WE'RE WORKING ON</div>
-      <StatusRows items={items} />
+    <div>
+      {boards.map((b) => <BotBoardView key={b.id || b.bot} board={b} />)}
+      {!boards.length && (
+        <div style={{ background: th.bg.base, border: `1px solid ${th.border.subtle}`, borderRadius: 14, padding: "12px", marginBottom: 10 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: 0.4, color: th.text.tertiary, marginBottom: 4 }}>WHAT WE'RE WORKING ON</div>
+          <div style={{ fontSize: 13, color: th.text.tertiary }}>No board posted yet.</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -121,14 +183,9 @@ export function WorkingOnHud(props: { onOpenBot: (bot: string) => void }) {
   const file = useCampusStatus();
   return (
     <div>
-      <StatusRows items={file.items} compact onOpenRoom={props.onOpenBot} />
+      <StatusRows items={itemsForRoom(file, "all")} compact onOpenRoom={props.onOpenBot} />
     </div>
   );
-}
-
-export function usePostedCount() {
-  const file = useCampusStatus();
-  return file.items.filter(isPosted).length;
 }
 
 export function roomIdForBot(botName: string): string | null {

@@ -1,59 +1,186 @@
 {
-  "updatedAt": "2026-11-10T00:15:00-05:00",
-  "items": [
-    {
-      "bot": "Einstein",
-      "task": "Building Rico's 3D campus v2 (Ghost HQ + bot chat links)",
-      "state": "in progress",
-      "updatedAt": "2026-11-10T00:15:00-05:00"
-    },
-    {
-      "bot": "Blitz",
-      "task": "NFL model NOT READY (projection_ready=false)",
-      "state": "blocked",
-      "updatedAt": "2026-11-10T00:15:00-05:00"
-    },
-    {
-      "bot": "BetGuru",
-      "task": "NBA model NOT READY, paper only",
-      "state": "blocked",
-      "updatedAt": "2026-11-10T00:15:00-05:00"
-    },
+  "updatedAt": "2026-11-10T00:59:00-05:00",
+  "bots": [
     {
       "bot": "Ghost6",
-      "task": "No update posted yet",
-      "state": "no update",
-      "updatedAt": null
+      "id": "51301de6-7619-41a1-b501-5addb96a78bf",
+      "room": "hq",
+      "workingOn": [],
+      "routines": [],
+      "openTasks": [
+        {
+          "task": "NFL W1-8 backfill delivery (Render ingestion + Suave consumer check)",
+          "state": "blocked",
+          "updatedAt": "Nov 7, 2026 ET"
+        },
+        {
+          "task": "Leakage-aware historical NFL evaluation after verified data delivery",
+          "state": "waiting on backfill",
+          "updatedAt": "Nov 7, 2026 ET"
+        },
+        {
+          "task": "PFF W1-8 recaps PR prep (121 captures saved)",
+          "state": "paused, no retry authorized",
+          "updatedAt": "Nov 7, 2026 ET"
+        },
+        {
+          "task": "28 named WR/TE coverage assignment gaps",
+          "state": "unverified, no pulls running",
+          "updatedAt": "Nov 7, 2026 11:19 AM ET"
+        },
+        {
+          "task": "CB/S W5-8 per-game coverage stats (targets/yards allowed)",
+          "state": "unverified, no pulls running",
+          "updatedAt": "Nov 7, 2026 ET"
+        },
+        {
+          "task": "Rico's call on deleting the auto-created Vercel production deployment for the campus",
+          "state": "waiting on Rico",
+          "updatedAt": "Nov 9, 2026 ET"
+        }
+      ]
+    },
+    {
+      "bot": "Einstein",
+      "id": "c4649df2-e5b8-4405-9552-c81153ff82d9",
+      "room": null,
+      "workingOn": [
+        {
+          "task": "Campus v3: room boards, Money Room bank, Travel Room beach",
+          "state": "in progress",
+          "updatedAt": "2026-11-10T00:59:00-05:00"
+        }
+      ],
+      "routines": [
+        {
+          "name": "Grade Suave Bets app props (NFL)",
+          "schedule": "Mon/Tue/Fri ~9:30 AM ET",
+          "state": "enabled",
+          "lastRun": "2026-11-09T09:37:00-05:00 (failed: out of usage)"
+        },
+        {
+          "name": "Suave Bets uptime check",
+          "schedule": "every 15 min",
+          "state": "paused",
+          "lastRun": "2026-11-06T09:07:00-05:00"
+        },
+        {
+          "name": "Suave Bets autonomous maintenance review",
+          "schedule": "weekdays ~9 AM & 3 PM ET",
+          "state": "paused",
+          "lastRun": "2026-11-06T09:09:00-05:00"
+        },
+        {
+          "name": "Suave Bets weekly maintenance preview",
+          "schedule": "Fridays ~4 PM ET",
+          "state": "paused",
+          "lastRun": null
+        },
+        {
+          "name": "NHL daily pick challenge (pre-game)",
+          "schedule": "daily 11:02 AM",
+          "state": "paused",
+          "lastRun": null
+        },
+        {
+          "name": "NHL daily pick challenge (grading)",
+          "schedule": "daily 9:32 AM",
+          "state": "paused",
+          "lastRun": null
+        },
+        {
+          "name": "NHL live slip update",
+          "schedule": "daily 9:17 PM",
+          "state": "paused",
+          "lastRun": null
+        },
+        {
+          "name": "NHL daily poster cards",
+          "schedule": "daily 11:32 AM",
+          "state": "paused",
+          "lastRun": null
+        },
+        {
+          "name": "NHL nightly recap to Smoke",
+          "schedule": "daily 11:47 PM",
+          "state": "paused",
+          "lastRun": null
+        },
+        {
+          "name": "NHL pre-game lineup re-check",
+          "schedule": "every 3 hrs 12:07 PM-9:07 PM",
+          "state": "paused",
+          "lastRun": null
+        }
+      ],
+      "openTasks": [
+        {
+          "task": "Swap in the real ApexTitan logo once Rico sends it",
+          "state": "waiting",
+          "updatedAt": "2026-11-10T00:59:00-05:00"
+        },
+        {
+          "task": "Suave Bets maintenance paused per Rico's Nov 6 usage cuts",
+          "state": "paused",
+          "updatedAt": "2026-11-10T00:59:00-05:00"
+        }
+      ]
     },
     {
       "bot": "Travel Agent",
-      "task": "No update posted yet",
-      "state": "no update",
-      "updatedAt": null
+      "id": "43552431-a941-43c8-9a62-ede19f2c0ac7",
+      "room": "travel",
+      "workingOn": [],
+      "routines": [],
+      "openTasks": []
+    },
+    {
+      "bot": "Blitz",
+      "id": "0bcd66da-bca8-4d8c-80f0-a827a79ab95b",
+      "room": "nfl",
+      "workingOn": [],
+      "routines": [],
+      "openTasks": []
+    },
+    {
+      "bot": "BetGuru",
+      "id": "ff79913d-8e37-4af9-b035-11a26727df67",
+      "room": "nba",
+      "workingOn": [],
+      "routines": [],
+      "openTasks": []
     },
     {
       "bot": "Money Maker Bot",
-      "task": "No update posted yet",
-      "state": "no update",
-      "updatedAt": null
+      "id": "331338ee-4a28-47ec-803b-561dba4679d5",
+      "room": "money",
+      "workingOn": [],
+      "routines": [],
+      "openTasks": []
     },
     {
       "bot": "ApexTitan",
-      "task": "No update posted yet",
-      "state": "no update",
-      "updatedAt": null
+      "id": "41135edf-1c9d-4bd6-87b3-924956475572",
+      "room": "shop",
+      "workingOn": [],
+      "routines": [],
+      "openTasks": []
     },
     {
       "bot": "College DropOut",
-      "task": "No update posted yet",
-      "state": "no update",
-      "updatedAt": null
+      "id": "04086def-1d67-479c-827c-29a3a7ce9eaf",
+      "room": null,
+      "workingOn": [],
+      "routines": [],
+      "openTasks": []
     },
     {
       "bot": "TopShotta",
-      "task": "No update posted yet",
-      "state": "no update",
-      "updatedAt": null
+      "id": "8e272c25-8d4c-4c0d-80f9-edd8c541605e",
+      "room": null,
+      "workingOn": [],
+      "routines": [],
+      "openTasks": []
     }
   ]
 }

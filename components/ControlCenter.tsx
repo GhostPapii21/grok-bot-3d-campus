@@ -6,6 +6,7 @@ import { PLACEHOLDER, sectionsById } from "../lib/sections";
 import Campus3D from "./Campus3DLazy";
 import { OwnerBotCard, HqBotRoster, WorkingOnBoard, WorkingOnHud, usePostedCount, roomIdForBot } from "./ChatAndStatus";
 import { themeFloorBg, ThemeRoomExtras } from "./themeProps";
+import RoomInterior3D from "./RoomInterior3DLazy";
 
 // ===== DATA (a refresh routine edits only these constants) =====
 // UPDATED: string shown in the HUD.
@@ -2789,6 +2790,7 @@ function ControlCenterInner() {
   const postedN = usePostedCount();
   const [room, setRoom] = useState<string | null>(null);
   const [classic, setClassic] = useState(false); // true = inside the room (3D interior)
+  const [interiorFail, setInteriorFail] = useState(false);
   const [inWall, setInWall] = useState<InWall>(0);
   const [inFocus, setInFocus] = useState(false);
   const [hot, setHot] = useState<string | null>(null);
@@ -2893,8 +2895,8 @@ function ControlCenterInner() {
     setRoom(id);
     setRoomHash(id);
   };
-  const goInside = () => { setClassic(true); setInWall(0); setInFocus(false); setPMember(null); };
-  const goRoom = (id: string) => { enter(id); setClassic(true); setInWall(0); setPMember(null); };
+  const goInside = () => { setInteriorFail(false); setClassic(true); setInWall(0); setInFocus(false); setPMember(null); };
+  const goRoom = (id: string) => { setInteriorFail(false); enter(id); setClassic(true); setInWall(0); setPMember(null); };
   const roomStep = (d: number) => { const i = TEAMS.findIndex((x) => x.id === room); const n = TEAMS.length; const nt = TEAMS[((i < 0 ? 0 : i) + d + n) % n]; if (nt) goRoom(nt.id); };
   const exit = () => { setClassic(false); setRoom(null); setRoomHash(null); };
   useEffect(() => {
@@ -3117,8 +3119,13 @@ function ControlCenterInner() {
       {/* room: 3D close-up + panel (or the classic illustrated room) */}
       {roomTeam && classic && (() => {
         const i = TEAMS.indexOf(roomTeam); const n = TEAMS.length;
+        const prevName = TEAMS[(i - 1 + n) % n].name;
+        const nextName = TEAMS[(i + 1) % n].name;
+        if (!interiorFail) {
+          return <RoomInterior3D team={roomTeam} phone={phone} prevName={prevName} nextName={nextName} onPrev={() => roomStep(-1)} onNext={() => roomStep(1)} onExit={exit} onFail={() => setInteriorFail(true)} />;
+        }
         return <Room3D team={roomTeam} idx={idxOf[roomTeam.id] || 0} t={t} vp={vp} phone={phone} wall={inWall} focus={inFocus} member={pMember} decisions={decisions} fresh={freshMap}
-          prevName={TEAMS[(i - 1 + n) % n].name} nextName={TEAMS[(i + 1) % n].name} onWall={setInWall} onFocus={setInFocus} onMember={setPMember} onPrev={() => roomStep(-1)} onNext={() => roomStep(1)} onExit={exit}
+          prevName={prevName} nextName={nextName} onWall={setInWall} onFocus={setInFocus} onMember={setPMember} onPrev={() => roomStep(-1)} onNext={() => roomStep(1)} onExit={exit}
           onDecide={decide} onSend={send} onSendNow={sendNow} />;
       })()}
       {roomTeam && !classic && (

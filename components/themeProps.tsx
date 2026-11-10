@@ -641,7 +641,7 @@ export function dressThemedRoom(
   pick: (o: THREE.Object3D) => THREE.Object3D,
 ): Spin[] {
   const spins: Spin[] = [];
-  if (id !== "nba" && id !== "nfl" && id !== "travel" && id !== "shop" && id !== "hq") return spins;
+  if (id !== "nba" && id !== "nfl" && id !== "travel" && id !== "shop" && id !== "hq" && id !== "money") return spins;
 
   const frontZ = g.d / 2 + 0.08;
   const backZ = -g.d / 2 + 0.1;
@@ -800,6 +800,100 @@ export function dressThemedRoom(
     G.add(matFloor);
   }
 
+
+  if (id === "money") {
+    const gold = own(new THREE.MeshStandardMaterial({ color: "#d4af37", metalness: 0.8, roughness: 0.28 }));
+    const steel = own(new THREE.MeshStandardMaterial({ color: "#6a6e72", metalness: 0.85, roughness: 0.3 }));
+    const dark = own(new THREE.MeshStandardMaterial({ color: "#2a2c2e", metalness: 0.7, roughness: 0.35 }));
+    const green = own(new THREE.MeshStandardMaterial({ color: "#1f6b3a", roughness: 0.7 }));
+    const cloth = own(new THREE.MeshStandardMaterial({ color: "#3d6b2e", roughness: 0.85 }));
+    const stone = own(new THREE.MeshStandardMaterial({ color: "#d8d2c6", roughness: 0.4, metalness: 0.1 }));
+    G.add(floorOverlay(canvasTex(256, 256, (c) => {
+      c.fillStyle = "#d8d2c6";
+      c.fillRect(0, 0, 256, 256);
+      c.strokeStyle = "rgba(80,70,60,0.2)";
+      for (let i = 0; i < 10; i++) {
+        c.beginPath();
+        c.moveTo(Math.random() * 256, Math.random() * 256);
+        c.lineTo(Math.random() * 256, Math.random() * 256);
+        c.stroke();
+      }
+    }), g.w - 0.2, g.d - 0.2));
+    // vault door on the facade
+    const vault = new THREE.Group();
+    vault.position.set(-0.55, 0.85, frontZ + 0.12);
+    const door = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.12, 32), steel);
+    door.rotation.x = Math.PI / 2;
+    vault.add(door);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.05, 8, 32), gold);
+    vault.add(rim);
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.035, 8, 16), dark);
+    wheel.position.z = 0.1;
+    vault.add(wheel);
+    pick(vault);
+    G.add(vault);
+    // cash stacks, gold bars, money bags in front of the building
+    const stack = (x: number, z: number) => {
+      G.add(mesh(boxGeo, green, 0.22, 0.1, 0.1, x, 0.08, z));
+      G.add(mesh(boxGeo, gold, 0.23, 0.02, 0.11, x, 0.08, z));
+    };
+    stack(0.7, frontZ + 0.7);
+    stack(0.95, frontZ + 0.85);
+    stack(1.2, frontZ + 0.7);
+    G.add(mesh(boxGeo, gold, 0.28, 0.08, 0.12, 1.35, 0.07, frontZ + 1.05));
+    G.add(mesh(boxGeo, gold, 0.28, 0.08, 0.12, 1.5, 0.07, frontZ + 1.15));
+    G.add(mesh(boxGeo, gold, 0.28, 0.08, 0.12, 1.42, 0.15, frontZ + 1.1));
+    const bagAt = (x: number, z: number) => {
+      const bag = new THREE.Group();
+      bag.position.set(x, 0, z);
+      const body = mesh(sphLo, cloth, 0.16, 0.2, 0.16, 0, 0.18, 0);
+      bag.add(body);
+      bag.add(mesh(cylGeo, cloth, 0.05, 0.08, 0.05, 0, 0.36, 0));
+      const dollar = canvasTex(64, 64, (c) => {
+        c.fillStyle = "#f4e7b0";
+        c.font = "700 48px Georgia, serif";
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText("$", 32, 36);
+      });
+      const sign = emblemPlane(dollar, 0.14, 0.14, 0, 0.2, 0.17);
+      bag.add(sign);
+      G.add(bag);
+      return bag;
+    };
+    const b1 = bagAt(-1.15, frontZ + 0.85);
+    pick(b1);
+    bagAt(-0.85, frontZ + 1.05);
+    bagAt(0.35, frontZ + 1.15);
+    // a few bills hovering in front (spin as a group)
+    const bills = new THREE.Group();
+    bills.position.set(0.2, 0.55, frontZ + 0.55);
+    const billMat = own(new THREE.MeshStandardMaterial({ color: "#2e8a4a", roughness: 0.7 }));
+    for (let i = 0; i < 6; i++) {
+      const bill = mesh(boxGeo, billMat, 0.18, 0.004, 0.08, (i % 3) * 0.12 - 0.12, i * 0.05, (i % 2) * 0.08);
+      bill.rotation.set(0.2, i * 0.4, 0.1);
+      bills.add(bill);
+    }
+    G.add(bills);
+    spins.push({ obj: bills, speed: 0.4 });
+    // facade "$ BANK" sign
+    const signTex = canvasTex(512, 160, (c) => {
+      c.fillStyle = "#1a1612";
+      c.fillRect(0, 0, 512, 160);
+      c.strokeStyle = "#d4af37";
+      c.lineWidth = 8;
+      c.strokeRect(6, 6, 500, 148);
+      c.fillStyle = "#d4af37";
+      c.font = "700 64px Georgia, serif";
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText("$  BANK", 256, 84);
+    });
+    const sign = emblemPlane(signTex, 1.8, 0.56, 0.4, 1.35, frontZ + 0.03);
+    pick(sign);
+    G.add(sign);
+  }
+
   return spins;
 }
 
@@ -816,6 +910,12 @@ export function themeFloorBg(id: string, fallback: string): string {
   }
   if (id === "shop") {
     return "repeating-linear-gradient(0deg, #161618 0 48px, #1c1c1e 48px 50px), #161618";
+  }
+  if (id === "money") {
+    return "linear-gradient(90deg, #d8d2c6 0 49%, #c8c0b2 49% 51%, #d8d2c6 51%), #d8d2c6";
+  }
+  if (id === "travel") {
+    return "#e6c98a";
   }
   return fallback;
 }
@@ -892,7 +992,7 @@ function cssGlobe(size: number, t: number, pins: boolean) {
 
 export function ThemeRoomExtras(props: { id: string; t: number; portrait: boolean; W: number; D: number }) {
   const { id, t, portrait, W, D } = props;
-  if (id !== "nba" && id !== "nfl" && id !== "travel" && id !== "shop" && id !== "hq") return null;
+  if (id !== "nba" && id !== "nfl" && id !== "travel" && id !== "shop" && id !== "hq" && id !== "money") return null;
   const side = portrait ? W * 0.38 : W * 0.42;
   const front = D * 0.38;
 
@@ -963,6 +1063,30 @@ export function ThemeRoomExtras(props: { id: string; t: number; portrait: boolea
         <div style={{ ...S3, transform: at(0, 0, -D * 0.46) }}>
           {cssFace(340, 90, at(0, -330, 0), { background: "#0d0d12", border: "3px solid #d4af37", color: "#d4af37", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", letterSpacing: 3, boxShadow: "0 8px 18px rgba(0,0,0,.45)" },
             <><b style={{ fontSize: 28, fontWeight: 800 }}>GHOST HQ</b><span style={{ fontSize: 12, color: "#f4f0e6", letterSpacing: 4, marginTop: 4 }}>CHIEF OF STAFF</span></>)}
+        </div>
+      </>
+    );
+  }
+
+
+  if (id === "money") {
+    return (
+      <>
+        {cssFace(W * 0.92, D * 0.7, at(0, -2, D * 0.08) + " rotateX(90deg)", {
+          background: "linear-gradient(90deg, #d8d2c6 0 48%, #c8c0b2 48% 52%, #d8d2c6 52%)",
+          pointerEvents: "none",
+        })}
+        <div style={{ ...S3, transform: at(-side * 0.55, 0, -D * 0.4) }}>
+          {cssFace(200, 200, at(0, -280, 0), { borderRadius: "50%", background: "radial-gradient(circle at 35% 30%, #8a8e92, #4a4e52 70%)", border: "8px solid #d4af37", boxShadow: "0 10px 24px rgba(0,0,0,.45)" },
+            <div style={{ position: "absolute", inset: "28%", borderRadius: "50%", border: "6px solid #2a2c2e" }} />)}
+        </div>
+        <div style={{ ...S3, transform: at(side * 0.7, -30, front * 0.5) }}>
+          {cssFace(50, 28, at(0, 0, 0), { background: "#1f6b3a", borderRadius: 2, boxShadow: "0 4px 8px rgba(0,0,0,.35)", borderTop: "6px solid #d4af37" })}
+          {cssFace(50, 28, at(20, 0, 8), { background: "#1f6b3a", borderRadius: 2, borderTop: "6px solid #d4af37" })}
+          {cssFace(56, 18, at(-30, 8, 4), { background: "#d4af37", borderRadius: 3, boxShadow: "0 4px 8px rgba(0,0,0,.35)" })}
+        </div>
+        <div style={{ ...S3, transform: at(-side * 0.2, -20, front * 0.6) }}>
+          {cssFace(44, 52, at(0, 0, 0), { background: "#3d6b2e", borderRadius: "50% 50% 46% 46%", boxShadow: "0 6px 10px rgba(0,0,0,.4)", color: "#f4e7b0", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 22 }, "$")}
         </div>
       </>
     );
