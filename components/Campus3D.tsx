@@ -204,10 +204,11 @@ export default function Campus3D(props: any) {
     const build = () => {
       roomRoot.children.slice().forEach((c) => { roomRoot.remove(c); disposeTree(c); });
       roadGroup.children.slice().forEach((c) => { roadGroup.remove(c); disposeTree(c); });
-      rooms = []; walkers = []; pickables = [tb, tt, roof, ...tower.children];
+      rooms = []; walkers = [];
       const p0 = pr.current; const T: any[] = p0.teams;
+      const hasHq = T.some((tm: any) => tm.id === "hq"); tower.visible = !hasHq; pickables = hasHq ? [] : [tb, tt, roof, ...tower.children];
       T.forEach((tm: any, ti: number) => {
-        if (tm.status === "frozen") return;
+        if (tm.status === "frozen" || tm.id === "hq") return;
         const p = p0.pos[tm.id]; if (!p) return;
         const c = ctrlFor(p); const pts: { x: number; z: number }[] = [];
         for (let i = 0; i <= 24; i++) pts.push(W3(qpt(PLAZA, c, p, i / 24)));
@@ -233,7 +234,7 @@ export default function Campus3D(props: any) {
         const freshRing = new THREE.Mesh(new THREE.RingGeometry(0.97, 1, 64), own(new THREE.MeshBasicMaterial({ color: P.accent, transparent: true, opacity: 0, depthWrite: false })));
         freshRing.rotation.x = -Math.PI / 2; freshRing.position.y = 0.01; freshRing.scale.set(g.w * 0.66, g.d * 0.72, 1); G.add(freshRing);
         // walls with cutaway
-        const H = fz ? 0.8 : 1.05, WT = 0.08;
+        const H = fz ? 0.8 : tm.id === "hq" ? 2.15 : 1.05, WT = 0.08;
         const walls: any[] = [];
         const wall = (k: number, x: number, z: number, sx: number, sz: number) => {
           const m = new THREE.Mesh(boxGeo, mats.wall); m.scale.set(sx, H, sz); m.position.set(x, 0.1, z); m.castShadow = !mobile; m.receiveShadow = !mobile; pick(m); G.add(m);

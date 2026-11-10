@@ -4,6 +4,7 @@ import { useGrokTheme } from "../lib/theme";
 import { TZ } from "../lib/tz";
 import { PLACEHOLDER, sectionsById } from "../lib/sections";
 import Campus3D from "./Campus3DLazy";
+import { OwnerBotCard, HqBotRoster, WorkingOnBoard, WorkingOnHud, usePostedCount, roomIdForBot } from "./ChatAndStatus";
 import { themeFloorBg, ThemeRoomExtras } from "./themeProps";
 
 // ===== DATA (a refresh routine edits only these constants) =====
@@ -70,8 +71,9 @@ const roomSpot = (frozen: boolean, i: number): { x: number; y: number } => {
   const k = i - base.length, col = Math.floor(k / 3), row = k % 3;
   return frozen ? { x: 210 - 400 * (col + 1), y: 420 + 330 * row } : { x: 2620 + 620 * col, y: 300 + 450 * row };
 };
-// Rico's five rooms sit around the plaza: Travel NW, NFL NE, Money SW, NBA SE, Shop south.
+// Rooms sit around the plaza; Ghost HQ is the command tower at the plaza center.
 const ROOM_POS: Record<string, { x: number; y: number }> = {
+  hq: { x: 1340, y: 750 },
   travel: { x: 720, y: 380 },
   nfl: { x: 1960, y: 380 },
   nba: { x: 1960, y: 1120 },
@@ -1656,7 +1658,8 @@ type RoomGeo = { w: number; d: number; lead: { x: number; z: number }; seats: { 
 const W3 = (p: { x: number; y: number }) => ({ x: p.x / 100 - 12, z: p.y / 100 - 7.5 });
 function roomGeo(team: Team): RoomGeo {
   const fz = team.status === "frozen";
-  const w = fz ? 3.3 : 5.3, d = fz ? 2.4 : 3.5; // roomier pods
+  const isHq = team.id === "hq";
+  const w = fz ? 3.3 : isHq ? 3.4 : 5.3, d = fz ? 2.4 : isHq ? 3.4 : 3.5;
   const n = Math.max(1, team.members.length);
   const span = w - 0.9;
   return {
@@ -1830,7 +1833,7 @@ function IsoCampus(props: SceneProps) {
   const ground = th.bg.base, road = th.bg.elevated, wallC = th.fill.secondary, deskC = th.border.strong, floorC = th.bg.elevated;
   // roads
   teams.forEach((tm) => {
-    if (tm.status === "frozen") return;
+    if (tm.status === "frozen" || tm.id === "hq") return;
     const p = props.pos[tm.id]; if (!p) return;
     const c = ctrlFor(p);
     const L: [number, number, number][] = [], R: [number, number, number][] = [], M: [number, number, number][] = [];
@@ -1841,12 +1844,15 @@ function IsoCampus(props: SceneProps) {
     }
     dr.push({ d: -999, l: 0, el: <g key={"rd" + tm.id}><polygon points={pts([...L, ...R.reverse()])} fill={road} stroke={th.border.subtle} strokeWidth={1} /><polyline points={pts(M)} fill="none" stroke={th.border.strong} strokeWidth={Math.max(1, zoom * 0.025)} strokeDasharray={`${zoom * 0.18} ${zoom * 0.22}`} strokeDashoffset={-t * zoom * 0.2} opacity={0.6} /></g> });
   });
-  // plaza + clock tower
+  // plaza + clock tower (hidden when Ghost HQ occupies the plaza)
   {
+    const hasHq = teams.some((tm) => tm.id === "hq");
     const ring: [number, number, number][] = [];
     for (let i = 0; i < 36; i++) { const a = (i / 36) * Math.PI * 2; ring.push(P(PL.x + Math.cos(a) * 1.5, 0.04, PL.z + Math.sin(a) * 1.5)); }
     dr.push({ d: -998, l: 0, el: <g key="plaza"><polygon points={pts(ring)} fill={th.bg.elevated} stroke={th.border.strong} strokeWidth={1.5} />{[0, 1, 2].map((k) => { const ph = (t * 0.3 + k / 3) % 1; const rr: [number, number, number][] = []; for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; rr.push(P(PL.x + Math.cos(a) * (0.4 + ph), 0.05, PL.z + Math.sin(a) * (0.4 + ph))); } return <polygon key={k} points={pts(rr)} fill="none" stroke={th.fill.accent} strokeWidth={1.5} opacity={0.45 * (1 - ph)} />; })}</g> });
+    if (hasHq) { /* Ghost HQ is the plaza landmark; skip the old clock tower. */ }
     const tw = { onClick: (e: any) => { if (e && e.stopPropagation) e.stopPropagation(); if (!moved()) props.onClock(); }, style: { cursor: "pointer" } };
+    if (!hasHq) {
     dr.push(boxD("tw0", PL.x - 0.42, PL.x + 0.42, 0, 0.22, PL.z - 0.42, PL.z + 0.42, th.border.strong, { ev: tw }));
     dr.push(boxD("tw1", PL.x - 0.26, PL.x + 0.26, 0.22, 1.75, PL.z - 0.26, PL.z + 0.26, th.bg.elevated, { ev: tw, top: th.border.strong }));
     const apex = P(PL.x, 2.3, PL.z);
@@ -1866,6 +1872,7 @@ function IsoCampus(props: SceneProps) {
         {props.clockLines.slice(0, 3).map((s, k) => <span key={k} style={{ fontSize: 12, padding: "2px 9px", borderRadius: 999, background: th.bg.elevated, border: `1px solid ${k === 0 ? th.border.focus : th.border.subtle}`, color: th.text.primary, whiteSpace: "nowrap" }}>{s}</span>)}
       </div>
     );
+    }
   }
   // trees
   TREES.forEach((q, i) => {
@@ -2118,6 +2125,9 @@ function RoomPanel(props: { team: Team; idx: number; t: number; tab: PanelTab; m
     const panels = section?.panels || [];
     body = (
       <div>
+        <OwnerBotCard roomId={team.id} />
+        <WorkingOnBoard roomId={team.id} roomOwner={section?.owner || team.lead.name} />
+        {team.id === "hq" && <HqBotRoster />}
         <div style={{ margin: "4px 0 12px", padding: "8px 10px", borderRadius: 12, background: th.fill.warningSubtle || th.fill.accentSubtle, border: `1px solid ${th.border.default}`, color: th.text.warning, fontSize: 13, fontWeight: 700 }}>{PLACEHOLDER}</div>
         {section && <div style={{ fontSize: 12.5, color: th.text.secondary, marginBottom: 10 }}>Owner · {section.owner}</div>}
         {panels.map((panel) => (
@@ -2776,6 +2786,7 @@ function ControlCenterInner() {
   const th = useGrokTheme();
   const cats = th.dataviz.categorical;
   const [t, setT] = useState(0);
+  const postedN = usePostedCount();
   const [room, setRoom] = useState<string | null>(null);
   const [classic, setClassic] = useState(false); // true = inside the room (3D interior)
   const [inWall, setInWall] = useState<InWall>(0);
@@ -2996,7 +3007,7 @@ function ControlCenterInner() {
   // where the campus may sit in the default view: between the two HUD windows, or (tall screens) below them
   const topFree = wide ? 64 : 108;
   const fitBoxes = roomTeam ? undefined : phone ? [{ l: 4, r: 4, t: 100, b: 64 }] : [
-    { l: Math.max(colW ? 0 : winL, mapOpen ? 230 : 0) + 24, r: colA ? 0 : winR + 24, t: topFree, b: 64 },
+    { l: Math.max(colW ? 0 : winL, mapOpen ? 230 : 0) + 24, r: 24, t: topFree, b: 64 },
     { l: mapOpen ? 254 : 0, r: 0, t: Math.max(topFree, winTop + Math.max(colW ? 44 : leftMaxN, colA ? 44 : rightMaxN) + 10), b: 116 },
     { l: 0, r: 0, t: Math.max(topFree, winTop + Math.max(colW ? 44 : leftMaxN, colA ? 44 : rightMaxN) + 10), b: mapOpen ? 250 : 116 },
   ];
@@ -3050,8 +3061,7 @@ function ControlCenterInner() {
     else if (k === "q" || k === "Q" || k === "ArrowLeft") setCmd({ n: cmd.n + 1, kind: "left" });
     else if (k === "e" || k === "E" || k === "ArrowRight") setCmd({ n: cmd.n + 1, kind: "right" });
     else if (k === "t" || k === "T") setCmd({ n: cmd.n + 1, kind: "tilt" });
-    else if (k === "a" || k === "A") { if (phone) setSheet(sheet === "approve" ? null : "approve"); else setColA(!colA); }
-    else if (k === "w" || k === "W") { if (phone) setSheet(sheet === "work" ? null : "work"); else setColW(!colW); }
+    else if (k === "a" || k === "A" || k === "w" || k === "W") { if (phone) setSheet(sheet === "work" ? null : "work"); else setColW(!colW); }
     else if (k === "n" || k === "N") setNewsOpen(!newsOpen);
     else if (k === "m" || k === "M") openDrawer("tray");
     else if (k === "f" || k === "F") { setFeedOpen(!feedOpen); setInboxOpen(false); setDrawer(null); }
@@ -3097,12 +3107,11 @@ function ControlCenterInner() {
           cmd={cmd} view={viewRef} clockLines={clockLines} soonN={soon.length} onPick={(p: ScenePick) => enter(p.team, p.what === "person" ? "person" : (p.what as PanelTab | undefined), p.member)} onHot={setHot} onClock={() => openDrawer("clock")} tip={sceneTip} onFail={() => setGlFail(true)} />
       )}
 
-      {/* floating HUD windows: visual right = waiting on you, visual left = in progress */}
+      {/* floating HUD: posted work from status.json. The upstream approval / in-progress placeholder windows are hidden. */}
       {!roomTeam && !phone && (
-        <FloatWin side="right" title="Waiting for your approval" count={approveOpenN} tone={th.text.warning} glow t={t} collapsed={colA} onToggle={() => setColA(!colA)} maxH={rightMax} top={winTop} w={winR} compact={compactHud}>{approveFloat}</FloatWin>
-      )}
-      {!roomTeam && !phone && (
-        <FloatWin side="left" title="In progress" count={workRows.length} tone={th.text.accent} t={t} collapsed={colW} onToggle={() => setColW(!colW)} maxH={leftMax} top={winTop} w={winL} compact={compactHud}>{workFloat}</FloatWin>
+        <FloatWin side="left" title="What we're working on" count={postedN} tone={th.text.accent} t={t} collapsed={colW} onToggle={() => setColW(!colW)} maxH={leftMax} top={winTop} w={winL} compact={compactHud}>
+          <WorkingOnHud onOpenBot={(name) => { const id = roomIdForBot(name); if (id) enter(id); }} />
+        </FloatWin>
       )}
 
       {/* room: 3D close-up + panel (or the classic illustrated room) */}
@@ -3133,10 +3142,6 @@ function ControlCenterInner() {
 
       {/* HUD */}
       <div style={{ position: "absolute", top: 12, insetInlineStart: "50%", transform: "translateX(-50%)", zIndex: 6, ...pill, gap: phone ? 12 : 16, padding: phone ? "5px 12px" : "6px 14px", maxWidth: "calc(100vw - 20px)", boxSizing: "border-box" }}>
-        <button onClick={() => { setInboxOpen(!inboxOpen); setFeedOpen(false); setDrawer(null); }} title="waiting for your approval" style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit", color: th.text.accent }}>
-          <svg width={22} height={22} viewBox="0 0 20 20" style={{ transform: `scale(${(1 + 0.08 * Math.sin(t * 4)) * bumpS})` }}><path d="M2 11 l3 -7 h10 l3 7 v6 h-16 z" fill="none" stroke={th.text.accent} strokeWidth={1.8} strokeLinejoin="round" /><path d="M2 11 h5 l1 2 h4 l1 -2 h5" fill="none" stroke={th.text.accent} strokeWidth={1.8} /></svg>
-          <b style={{ fontSize: 17, display: "inline-block", transform: `scale(${bumpS})` }}>{openTotal}</b>
-        </button>
         <button onClick={() => openDrawer("tray")} title="Bot tray (M)" style={{ position: "relative", display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit", color: queue.length ? th.text.accent : th.text.secondary }}>
           <svg width={22} height={22} viewBox="-12 -12 24 24"><path d="M -10 -2 h 20 v 10 h -20 z" fill="none" stroke="currentColor" strokeWidth={1.8} /><path d="M -10 -2 l 10 6 l 10 -6" fill="none" stroke="currentColor" strokeWidth={1.8} />{queue.slice(0, 3).map((_, k) => <rect key={k} x={-7 + k} y={-9 - k * 2.5 + Math.sin(t * 4 + k) * 0.6} width={14} height={7} rx={1} fill={th.bg.elevated} stroke="currentColor" strokeWidth={1.2} />)}</svg>
           <b style={{ fontSize: 15 }}>{queue.length}</b>
@@ -3208,13 +3213,11 @@ function ControlCenterInner() {
       {phone && !roomTeam && (
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 7, display: "flex", flexDirection: "column", ...(sheet ? { ...glass, borderRadius: "20px 20px 0 0", height: sheetH } : {}), transition: "height 300ms" }}>
           <div style={{ display: "flex", gap: 8, padding: "10px 10px 10px" }}>
-            {(["approve", "work"] as const).map((k) => (
-              <button key={k} onClick={() => setSheet(sheet === k ? null : k)} style={{ flex: 1, font: "inherit", fontSize: 14, fontWeight: 700, padding: "10px 8px", borderRadius: 999, border: `1px solid ${sheet === k ? th.fill.accent : th.border.default}`, background: sheet === k ? th.border.strong : th.bg.elevated, color: th.text.primary, cursor: "pointer", boxShadow: "0 6px 18px rgba(0,0,0,.3)" }}>
-                {k === "approve" ? "⏳ Awaiting approval" : "⚙️ In progress"} <b style={{ color: th.text.accent }}>{k === "approve" ? approveOpenN : workRows.length}</b>
-              </button>
-            ))}
+            <button onClick={() => setSheet(sheet === "work" ? null : "work")} style={{ flex: 1, font: "inherit", fontSize: 14, fontWeight: 700, padding: "10px 8px", borderRadius: 999, border: `1px solid ${sheet === "work" ? th.fill.accent : th.border.default}`, background: sheet === "work" ? th.border.strong : th.bg.elevated, color: th.text.primary, cursor: "pointer", boxShadow: "0 6px 18px rgba(0,0,0,.3)" }}>
+              What we're working on <b style={{ color: th.text.accent }}>{postedN}</b>
+            </button>
           </div>
-          {sheet && <div style={{ overflowY: "auto", padding: "0 14px 16px", flex: "1 1 auto", minHeight: 0, overscrollBehavior: "contain" }}>{sheet === "approve" ? approveFloat : workFloat}</div>}
+          {sheet && <div style={{ overflowY: "auto", padding: "0 14px 16px", flex: "1 1 auto", minHeight: 0, overscrollBehavior: "contain" }}><WorkingOnHud onOpenBot={(name) => { const id = roomIdForBot(name); if (id) enter(id); }} /></div>}
         </div>
       )}
 
@@ -3259,7 +3262,7 @@ function ControlCenterInner() {
       {help && (
         <div onClick={() => setHelp(false)} style={{ position: "absolute", top: 60, left: "50%", transform: "translateX(-50%)", width: "min(460px, calc(100% - 24px))", zIndex: 10, ...glass, borderRadius: 20, padding: "14px 18px" }}>
           <b style={{ fontSize: 15 }}>Keyboard shortcuts</b>
-          {[["/ or Ctrl+K", "Search"], ["1–9", "Open a team's room"], ["] / [", "Next / previous team (all teams, also past 9)"], ["Esc", "Close / back to campus"], ["A / W", "Approvals window / In-progress window"], ["N", "What's new since your last visit"], ["M", "Bot tray"], ["F", "Full feed"], ["+ / −", "Zoom"], ["Q / E", "Rotate the camera"], ["T", "Tilt the camera"], ["H", "Back to the overview"], ["Enter", "Enter the room (from the room view)"], ["← →", "In a room: switch boards"], ["Drag in a room", "look around · double-click: normal view"], ["↑ ↓", "In a room: previous / next room"], ["Drag", "pan · right/Shift+drag: rotate · wheel: zoom"]].map(([k, d]) => (
+          {[["/ or Ctrl+K", "Search"], ["1–9", "Open a team's room"], ["] / [", "Next / previous team (all teams, also past 9)"], ["Esc", "Close / back to campus"], ["W", "What we're working on"], ["N", "What's new since your last visit"], ["M", "Bot tray"], ["F", "Full feed"], ["+ / −", "Zoom"], ["Q / E", "Rotate the camera"], ["T", "Tilt the camera"], ["H", "Back to the overview"], ["Enter", "Enter the room (from the room view)"], ["← →", "In a room: switch boards"], ["Drag in a room", "look around · double-click: normal view"], ["↑ ↓", "In a room: previous / next room"], ["Drag", "pan · right/Shift+drag: rotate · wheel: zoom"]].map(([k, d]) => (
             <div key={k} style={{ display: "flex", gap: 10, fontSize: 13, padding: "5px 0", borderBottom: `1px solid ${th.border.weak}` }}><b dir="ltr" style={{ minWidth: 92, color: th.text.accent }}>{k}</b><span>{d}</span></div>
           ))}
         </div>

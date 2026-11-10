@@ -1,4 +1,4 @@
-// Rico's Campus v1: five rooms, placeholder copy only.
+// Rico's Campus: six rooms (including Ghost HQ), placeholder copy plus posted status.json items only.
 // No invented activity, usage, approvals, or picks. Specialists can later swap lib/sections.ts (or static JSON).
 import { sections } from "./sections"
 

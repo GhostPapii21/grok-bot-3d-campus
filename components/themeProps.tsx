@@ -614,6 +614,25 @@ function gymEquipment(x: number, z: number, rotY: number, mobile: boolean) {
  * Dress a campus room (and a small outdoor apron in front of the door) with
  * themed props. Returns objects that should spin each frame.
  */
+
+function hqBannerTex() {
+  return canvasTex(1024, 256, (c) => {
+    c.fillStyle = "#0d0d12";
+    c.fillRect(0, 0, 1024, 256);
+    c.strokeStyle = "#d4af37";
+    c.lineWidth = 10;
+    c.strokeRect(8, 8, 1008, 240);
+    c.fillStyle = "#d4af37";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.font = "800 92px system-ui, Segoe UI, sans-serif";
+    c.fillText("GHOST HQ", 512, 110);
+    c.fillStyle = "#f4f0e6";
+    c.font = "600 32px system-ui, Segoe UI, sans-serif";
+    c.fillText("CHIEF OF STAFF", 512, 180);
+  });
+}
+
 export function dressThemedRoom(
   G: THREE.Group,
   id: string,
@@ -622,10 +641,40 @@ export function dressThemedRoom(
   pick: (o: THREE.Object3D) => THREE.Object3D,
 ): Spin[] {
   const spins: Spin[] = [];
-  if (id !== "nba" && id !== "nfl" && id !== "travel" && id !== "shop") return spins;
+  if (id !== "nba" && id !== "nfl" && id !== "travel" && id !== "shop" && id !== "hq") return spins;
 
   const frontZ = g.d / 2 + 0.08;
   const backZ = -g.d / 2 + 0.1;
+
+  if (id === "hq") {
+    const banner = hqBannerTex();
+    const gold = own(new THREE.MeshStandardMaterial({ color: "#d4af37", metalness: 0.55, roughness: 0.35 }));
+    const dark = own(new THREE.MeshStandardMaterial({ color: "#16161c", roughness: 0.7 }));
+    const metal = own(new THREE.MeshStandardMaterial({ color: "#8a8a90", metalness: 0.6, roughness: 0.3 }));
+    const frontZ = g.d / 2 + 0.08;
+    const backZ = -g.d / 2 + 0.1;
+    const wallY = 2.25;
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 4), gold);
+    roof.scale.set(2.5, 0.85, 2.5);
+    roof.position.y = wallY + 0.42;
+    roof.rotation.y = Math.PI / 4;
+    G.add(roof);
+    // radio masts
+    G.add(mesh(cylGeo, metal, 0.018, 0.7, 0.018, 0.15, wallY + 1.05, 0.1));
+    G.add(mesh(cylGeo, metal, 0.012, 0.45, 0.012, -0.18, wallY + 0.95, -0.08));
+    const tip = mesh(sphLo, gold, 0.04, 0.04, 0.04, 0.15, wallY + 1.42, 0.1);
+    G.add(tip);
+    const signF = emblemPlane(banner, 2.2, 0.55, 0, 1.7, frontZ + 0.03);
+    pick(signF);
+    G.add(signF);
+    G.add(emblemPlane(banner, 1.8, 0.45, 0, 1.55, backZ + 0.03));
+    // gold ring around the tower base, visible from campus overview
+    const ring = new THREE.Mesh(new THREE.RingGeometry(2.0, 2.15, 48), own(new THREE.MeshBasicMaterial({ color: "#d4af37", transparent: true, opacity: 0.7, side: THREE.DoubleSide })));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.02;
+    G.add(ring);
+    return spins;
+  }
 
   if (id === "nba") {
     const court = courtTex();
@@ -843,7 +892,7 @@ function cssGlobe(size: number, t: number, pins: boolean) {
 
 export function ThemeRoomExtras(props: { id: string; t: number; portrait: boolean; W: number; D: number }) {
   const { id, t, portrait, W, D } = props;
-  if (id !== "nba" && id !== "nfl" && id !== "travel" && id !== "shop") return null;
+  if (id !== "nba" && id !== "nfl" && id !== "travel" && id !== "shop" && id !== "hq") return null;
   const side = portrait ? W * 0.38 : W * 0.42;
   const front = D * 0.38;
 
@@ -903,6 +952,17 @@ export function ThemeRoomExtras(props: { id: string; t: number; portrait: boolea
         {/* desk-scale globe sits near the lead desk (center) */}
         <div style={{ ...S3, transform: at(80, -110, portrait ? -D * 0.18 : -D * 0.1) }}>
           {cssFace(52, 52, "", { background: "transparent" }, cssGlobe(52, t * 1.4, false))}
+        </div>
+      </>
+    );
+  }
+
+  if (id === "hq") {
+    return (
+      <>
+        <div style={{ ...S3, transform: at(0, 0, -D * 0.46) }}>
+          {cssFace(340, 90, at(0, -330, 0), { background: "#0d0d12", border: "3px solid #d4af37", color: "#d4af37", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", letterSpacing: 3, boxShadow: "0 8px 18px rgba(0,0,0,.45)" },
+            <><b style={{ fontSize: 28, fontWeight: 800 }}>GHOST HQ</b><span style={{ fontSize: 12, color: "#f4f0e6", letterSpacing: 4, marginTop: 4 }}>CHIEF OF STAFF</span></>)}
         </div>
       </>
     );

@@ -1,0 +1,59 @@
+{
+  "updatedAt": "2026-11-10T00:15:00-05:00",
+  "items": [
+    {
+      "bot": "Einstein",
+      "task": "Building Rico's 3D campus v2 (Ghost HQ + bot chat links)",
+      "state": "in progress",
+      "updatedAt": "2026-11-10T00:15:00-05:00"
+    },
+    {
+      "bot": "Blitz",
+      "task": "NFL model NOT READY (projection_ready=false)",
+      "state": "blocked",
+      "updatedAt": "2026-11-10T00:15:00-05:00"
+    },
+    {
+      "bot": "BetGuru",
+      "task": "NBA model NOT READY, paper only",
+      "state": "blocked",
+      "updatedAt": "2026-11-10T00:15:00-05:00"
+    },
+    {
+      "bot": "Ghost6",
+      "task": "No update posted yet",
+      "state": "no update",
+      "updatedAt": null
+    },
+    {
+      "bot": "Travel Agent",
+      "task": "No update posted yet",
+      "state": "no update",
+      "updatedAt": null
+    },
+    {
+      "bot": "Money Maker Bot",
+      "task": "No update posted yet",
+      "state": "no update",
+      "updatedAt": null
+    },
+    {
+      "bot": "ApexTitan",
+      "task": "No update posted yet",
+      "state": "no update",
+      "updatedAt": null
+    },
+    {
+      "bot": "College DropOut",
+      "task": "No update posted yet",
+      "state": "no update",
+      "updatedAt": null
+    },
+    {
+      "bot": "TopShotta",
+      "task": "No update posted yet",
+      "state": "no update",
+      "updatedAt": null
+    }
+  ]
+}

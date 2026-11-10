@@ -1,5 +1,5 @@
 // Single source for room copy so specialists can later swap in static JSON.
-// v1 is placeholder-only: no live data, no fabricated numbers, no picks.
+// v1/v2 is placeholder-only plus posted status.json items: no fabricated numbers or picks.
 
 export type PanelKind = "status" | "board" | "notes"
 
@@ -27,6 +27,20 @@ export type Section = {
 export const PLACEHOLDER = "Placeholder – content coming soon"
 
 export const sections: Section[] = [
+  {
+    id: "hq",
+    hash: "#/hq",
+    name: "Ghost HQ",
+    owner: "Ghost6",
+    ownerRole: "Chief of Staff",
+    tagline: "Command tower. Ghost6 can reach every bot.",
+    work: "Ghost6 can reach every bot from this tower. Posted work is on the board in this section.",
+    next: "Updates appear on the board when a bot posts one.",
+    lines: ["Ghost HQ", "Chief of Staff"],
+    panels: [
+      { id: "command", title: "Command desk", kind: "notes", body: "Ghost6 can open a chat with every bot from this tower. Posted work appears on What we're working on. Nothing else is listed until a bot posts an update." },
+    ],
+  },
   {
     id: "travel",
     hash: "#/travel",
