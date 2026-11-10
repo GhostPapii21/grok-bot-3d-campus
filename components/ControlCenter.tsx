@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useGrokTheme } from "../lib/theme";
 import { TZ } from "../lib/tz";
+import { PLACEHOLDER, sectionsById } from "../lib/sections";
 import Campus3D from "./Campus3DLazy";
 
 // ===== DATA (a refresh routine edits only these constants) =====
@@ -68,11 +69,34 @@ const roomSpot = (frozen: boolean, i: number): { x: number; y: number } => {
   const k = i - base.length, col = Math.floor(k / 3), row = k % 3;
   return frozen ? { x: 210 - 400 * (col + 1), y: 420 + 330 * row } : { x: 2620 + 620 * col, y: 300 + 450 * row };
 };
+// Rico's five rooms sit around the plaza: Travel NW, NFL NE, Money SW, NBA SE, Shop south.
+const ROOM_POS: Record<string, { x: number; y: number }> = {
+  travel: { x: 720, y: 380 },
+  nfl: { x: 1960, y: 380 },
+  nba: { x: 1960, y: 1120 },
+  money: { x: 720, y: 1120 },
+  shop: { x: 1340, y: 1250 },
+};
 const layoutRooms = (teams: { id: string; status: string }[]) => {
   const pos: Record<string, { x: number; y: number }> = {};
   let a = 0, f = 0;
-  teams.forEach((x) => { pos[x.id] = x.status === "frozen" ? roomSpot(true, f++) : roomSpot(false, a++); });
+  teams.forEach((x) => {
+    if (ROOM_POS[x.id]) pos[x.id] = ROOM_POS[x.id];
+    else pos[x.id] = x.status === "frozen" ? roomSpot(true, f++) : roomSpot(false, a++);
+  });
   return pos;
+};
+const roomFromHash = () => {
+  if (typeof window === "undefined") return null;
+  const raw = window.location.hash || "";
+  const id = raw.replace(/^#\/?/, "").replace(/\/$/, "");
+  return id && ROOM_POS[id] ? id : null;
+};
+const setRoomHash = (id: string | null) => {
+  if (typeof window === "undefined") return;
+  const next = id ? `#/${id}` : "#/";
+  if (window.location.hash === next || (!id && (window.location.hash === "" || window.location.hash === "#"))) return;
+  window.history.pushState(null, "", next);
 };
 // how far the generated rooms reach past the original campus box (3D units: x -11.6..10.2, z -6.6..7.2); 0 for the 6 + 3 layout,
 // so the default view only changes when there are extra rooms. phone: frozen rooms stay out of the fit (as before).
@@ -1210,7 +1234,7 @@ function Room(props: { team: Team; idx: number; t: number; onExit: () => void; d
           <div style={{ fontSize: 34, fontWeight: 800, textAlign: "center" }}>{usage !== null ? `${usage}%` : "—"}</div>
           <div style={{ fontSize: 14, color: th.text.secondary, textAlign: "center", marginBottom: 14 }}>{usage !== null ? "The team's share of weekly usage" : "No usage data for this team"}</div>
           <div style={{ background: th.bg.subtle, borderRadius: 14, padding: "10px 14px", fontSize: 14, lineHeight: "22px" }}>
-            Total weekly usage: <b>{USAGE.weeklyPct}%</b> · resets {USAGE.reset}
+            {(USAGE.byTeam.length > 0 || !!USAGE.reset) ? <>Total weekly usage: <b>{USAGE.weeklyPct}%</b> · resets {USAGE.reset}</> : PLACEHOLDER}
           </div>
           {(team.botUsage || []).length > 0 && (
             <div style={{ marginTop: 14 }}>
@@ -2073,7 +2097,7 @@ function IsoBlob(props: { x: number; y: number; s: number; t: number; seed: numb
 }
 
 // ---- room panel: everything about one team, next to the 3D room ----
-type PanelTab = "inbox" | "task" | "person" | "routine" | "news" | "goal";
+type PanelTab = "boards" | "inbox" | "task" | "person" | "routine" | "news" | "goal";
 function RoomPanel(props: { team: Team; idx: number; t: number; tab: PanelTab; member: number | null; phone: boolean; open: boolean; decisions: Record<string, Decision>; fresh: Record<string, boolean>;
   onTab: (k: PanelTab) => void; onMember: (i: number | null) => void; onDecide: (team: Team, item: Pending, kind: Decision["kind"], msg: string) => void; onSend: (msg: string) => void; onSendNow: (msg: string) => void; onExit: () => void; onClassic: () => void; onToggle: () => void; style: any }) {
   const th = useGrokTheme();
@@ -2083,12 +2107,33 @@ function RoomPanel(props: { team: Team; idx: number; t: number; tab: PanelTab; m
   const fz = team.status === "frozen";
   const open = team.pending.filter((p) => !props.decisions[p.id]).length;
   const tone = fz ? th.text.tertiary : team.status === "hold" ? th.text.warning : team.status === "partial" ? th.text.accent : th.text.success;
-  const tabs: [PanelTab, string, number | null][] = [["inbox", "Approve", open], ["task", "Tasks", team.tasks.filter((k) => k.state !== "done").length], ["person", "Team", team.members.length + 1], ["routine", "Scheduled", (team.routines || []).length], ["news", "Activity", null], ["goal", "Goal", null]];
+  const tabs: [PanelTab, string, number | null][] = [["boards", "Boards", null], ["inbox", "Approve", open], ["task", "Tasks", team.tasks.filter((k) => k.state !== "done").length], ["person", "Team", team.members.length + 1], ["routine", "Scheduled", (team.routines || []).length], ["news", "Activity", null], ["goal", "Goal", null]];
   const people = ownersOf(team);
   const doingOf = (n: string) => team.tasks.filter((k) => k.owner === n && k.state === "doing");
   const sec: any = { fontSize: 12, fontWeight: 700, color: th.text.tertiary, margin: "12px 0 6px" };
   let body: any = null;
-  if (props.tab === "inbox") {
+  if (props.tab === "boards") {
+    const section = sectionsById[team.id];
+    const panels = section?.panels || [];
+    body = (
+      <div>
+        <div style={{ margin: "4px 0 12px", padding: "8px 10px", borderRadius: 12, background: th.fill.warningSubtle || th.fill.accentSubtle, border: `1px solid ${th.border.default}`, color: th.text.warning, fontSize: 13, fontWeight: 700 }}>{PLACEHOLDER}</div>
+        {section && <div style={{ fontSize: 12.5, color: th.text.secondary, marginBottom: 10 }}>Owner · {section.owner}</div>}
+        {panels.map((panel) => (
+          <div key={panel.id} style={{ background: th.bg.base, border: `1px solid ${th.border.subtle}`, borderRadius: 14, padding: "10px 12px", marginBottom: 8 }}>
+            <b style={{ fontSize: 14, fontFamily: "inherit", display: "block", marginBottom: 6 }}>{panel.title}</b>
+            {panel.status && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "4px 10px 4px 8px", borderRadius: 999, background: th.fill.dangerSubtle, color: th.text.danger, fontSize: 12, fontWeight: 800 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 4, background: th.text.danger }} />
+                {panel.status.label}
+              </div>
+            )}
+            <div style={{ fontSize: 13.5, lineHeight: "20px", color: th.text.secondary }}>{panel.body}</div>
+          </div>
+        ))}
+      </div>
+    );
+  } else if (props.tab === "inbox") {
     const rows: ApproveRowT[] = team.pending.map((p) => ({ team, idx, item: p, at: sinceAt(p.since) }));
     body = rows.length ? rows.map((r, k) => <div key={r.item.id} style={{ boxShadow: props.fresh["p:" + r.item.id] ? `inset -3px 0 0 ${th.fill.accent}` : "none", paddingInlineStart: props.fresh["p:" + r.item.id] ? 8 : 0 }}><FloatApproveRow row={r} t={t} last={k === rows.length - 1} decision={props.decisions[r.item.id]} onDecide={(kd, m) => props.onDecide(team, r.item, kd, m)} onSendNow={props.onSendNow} onEnter={() => {}} /></div>) : <div style={{ padding: "18px 0", textAlign: "center", color: th.text.tertiary, fontSize: 14 }}>Nothing to approve in this room 🎉</div>;
   } else if (props.tab === "task") {
@@ -2749,7 +2794,7 @@ function ControlCenterInner() {
   const [colW, setColW] = useState(false); // left "work" window minimized
   const [colA, setColA] = useState(false); // right "approve" window minimized
   const [sheet, setSheet] = useState<null | "approve" | "work">(null); // phone bottom sheet
-  const [pTab, setPTab] = useState<PanelTab>("inbox");
+  const [pTab, setPTab] = useState<PanelTab>("boards");
   const [pMember, setPMember] = useState<number | null>(null);
   const [pOpen, setPOpen] = useState(true);
   const [filter, setFilter] = useState<string | null>(null);
@@ -2826,17 +2871,31 @@ function ControlCenterInner() {
     setHot(null); setFeedOpen(false); setInboxOpen(false); setDrawer(null); setSearch(null); setNewsOpen(false); setSheet(null);
     const tm = TEAMS.find((x) => x.id === id);
     const open = tm ? tm.pending.filter((p) => !decisions[p.id]).length : 0;
-    setPTab(what || (open ? "inbox" : "person"));
+    setPTab(what || "boards");
     setPMember(member === undefined ? null : member);
     setPOpen(true);
     setClassic(false);
     setInFocus(false);
     setRoom(id);
+    setRoomHash(id);
   };
   const goInside = () => { setClassic(true); setInWall(0); setInFocus(false); setPMember(null); };
   const goRoom = (id: string) => { enter(id); setClassic(true); setInWall(0); setPMember(null); };
   const roomStep = (d: number) => { const i = TEAMS.findIndex((x) => x.id === room); const n = TEAMS.length; const nt = TEAMS[((i < 0 ? 0 : i) + d + n) % n]; if (nt) goRoom(nt.id); };
-  const exit = () => { setClassic(false); setRoom(null); };
+  const exit = () => { setClassic(false); setRoom(null); setRoomHash(null); };
+  useEffect(() => {
+    const id = roomFromHash();
+    if (id) enter(id);
+    const on = () => {
+      const next = roomFromHash();
+      if (next) enter(next);
+      else { setClassic(false); setRoom(null); }
+    };
+    window.addEventListener("hashchange", on);
+    window.addEventListener("popstate", on);
+    return () => { window.removeEventListener("hashchange", on); window.removeEventListener("popstate", on); };
+  }, []);
+
   const copyText = (msg: string, kind: "tray" | "batch" | "failed" | undefined, err?: string) => {
     const nav = (globalThis as any).navigator;
     const show = (ok: boolean) => setToast({ msg, ok, t0: t, kind, err });
@@ -2863,12 +2922,10 @@ function ControlCenterInner() {
     lastSend.current = Date.now();
     setSending(true);
     if (DEMO) {
-      // demo: nothing leaves the browser; the simulation plays the team's follow-up
-      await new Promise((r) => setTimeout(r, 650));
-      DEMO.send(items);
-      setQueue((q) => q.filter((x) => !items.includes(x)));
-      setToast({ msg: fmt(items), ok: true, t0: t, kind: "sent" });
+      // v1: no bot is connected; nothing is sent and no follow-up is invented
+      await new Promise((r) => setTimeout(r, 250));
       setSending(false);
+      setToast({ msg: "Placeholder – no bot is connected. Nothing was sent.", ok: true, t0: t, kind: "failed", err: "no bot connected" });
       return;
     }
     let err = "";
@@ -3008,7 +3065,8 @@ function ControlCenterInner() {
     <button title={title} aria-label={title} onClick={onClick} style={{ font: "inherit", fontSize: 16, fontWeight: 700, width: 36, height: 36, borderRadius: 18, border: `1px solid ${on ? th.fill.accent : th.border.default}`, background: th.bg.elevated, color: th.text.primary, cursor: "pointer", boxShadow: "0 4px 14px rgba(0,0,0,.18)", padding: 0 }}>{label}</button>
   );
   const pill: any = { display: "flex", alignItems: "center", gap: 14, padding: "6px 14px", borderRadius: 999, background: th.bg.elevated, border: `1px solid ${th.border.default}`, boxShadow: "0 6px 20px rgba(0,0,0,.14)" };
-  const left = 100 - USAGE.weeklyPct;
+  const usageReady = USAGE.byTeam.length > 0 || !!USAGE.reset;
+  const left = usageReady ? 100 - USAGE.weeklyPct : 0;
   const toastVisible = toast && t - toast.t0 < (toast.kind === "failed" ? 14 : 7);
   const Scene: any = SCENE3D && !glFail ? SCENE3D : IsoCampus;
   const sceneTip = (p: ScenePick) => { const tm = TEAMS.find((x) => x.id === p.team); return tm ? <SceneTip team={tm} member={p.member} what={p.what} alerts={alertsOf[tm.id] || []} open={openOf[tm.id] || 0} /> : null; };
@@ -3080,9 +3138,9 @@ function ControlCenterInner() {
           <svg width={22} height={22} viewBox="-12 -12 24 24"><path d="M -10 -2 h 20 v 10 h -20 z" fill="none" stroke="currentColor" strokeWidth={1.8} /><path d="M -10 -2 l 10 6 l 10 -6" fill="none" stroke="currentColor" strokeWidth={1.8} />{queue.slice(0, 3).map((_, k) => <rect key={k} x={-7 + k} y={-9 - k * 2.5 + Math.sin(t * 4 + k) * 0.6} width={14} height={7} rx={1} fill={th.bg.elevated} stroke="currentColor" strokeWidth={1.2} />)}</svg>
           <b style={{ fontSize: 15 }}>{queue.length}</b>
         </button>
-        <button onClick={() => openDrawer("usage")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit", color: th.text.primary }} title={`Weekly usage · resets ${USAGE.reset} · on-demand ${USAGE.onDemandPct}%`}>
+        <button onClick={() => openDrawer("usage")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit", color: th.text.primary }} title={usageReady ? `Weekly usage · resets ${USAGE.reset} · on-demand ${USAGE.onDemandPct}%` : PLACEHOLDER}>
           <svg width={34} height={18} viewBox="0 0 46 22"><rect x={1} y={2} width={40} height={18} rx={4} fill="none" stroke={th.text.secondary} strokeWidth={2} /><rect x={42} y={7} width={3} height={8} rx={1} fill={th.text.secondary} /><rect x={4} y={5} width={34 * (left / 100)} height={12} rx={2} fill={th.text.success} opacity={0.7 + 0.3 * Math.sin(t * 2)} /></svg>
-          <b style={{ fontSize: 14 }}>{USAGE.weeklyPct}%</b>
+          <b style={{ fontSize: 14 }}>{usageReady ? `${USAGE.weeklyPct}%` : "n/a"}</b>
         </button>
         <button onClick={() => openDrawer("clock")} title={alertN ? "Scheduled tasks · some failed" : "Scheduled tasks"} style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit", color: alertN ? th.text.danger : th.text.primary }}>
           <svg width={22} height={22} viewBox="-11 -11 22 22"><Clock r={9} t={t} mode="on" fail={alertN > 0} /></svg>
@@ -3285,7 +3343,7 @@ function ControlCenterInner() {
         {drawer === "usage" && (
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: th.bg.subtle, borderRadius: 14, padding: "10px 12px", fontSize: 14 }}>
-              <b style={{ fontSize: 26 }}>{USAGE.weeklyPct}%</b><span>of the week used · resets {USAGE.reset}</span>
+              <b style={{ fontSize: 26 }}>{usageReady ? `${USAGE.weeklyPct}%` : "n/a"}</b><span>{usageReady ? `of the week used · resets ${USAGE.reset}` : PLACEHOLDER}</span>
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, margin: "12px 0 6px" }}>By team</div>
             {USAGE.byTeam.map((u) => (
@@ -3406,18 +3464,13 @@ export default function ControlCenter(props: { initial: DataShape; demo?: DemoAp
   const refresh = async () => {
     if (busyRef.current) return;
     if (demo) {
-      // demo: the same states as the real flow (request sent -> the bot reads the chats -> new data), all simulated
-      if (pollUntil) return;
+      // v1: static placeholders only; no bot refresh and no invented new data
       busyRef.current = true; setBusy(true);
-      const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
-      await pause(700); await load(); setAt(Date.now());
+      await load();
+      setAt(Date.now());
+      setNote("Placeholder – no live refresh is connected.");
+      setResult("same");
       busyRef.current = false; setBusy(false);
-      setReqAt(Date.now()); setPollUntil(Date.now() + 6 * 60000);
-      await pause(2200); setNote("The bot is reading the team chats…");
-      await pause(3600); setNote("Updating the page…");
-      await pause(1400);
-      demo.refreshRound(); await load(); setAt(Date.now());
-      setNote(""); setPollUntil(0); setReqAt(0); setResult("new");
       return;
     }
     busyRef.current = true; setBusy(true);

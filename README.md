@@ -1,3 +1,25 @@
+# Rico's Campus (v1 prototype)
+
+Fork of [sarbarshem/grok-bot-3d-campus](https://github.com/sarbarshem/grok-bot-3d-campus), used under the MIT License (Copyright (c) 2026 Sar Bar-Shem). The original license file is unchanged.
+
+This fork is Rico's 3D campus with exactly five rooms:
+
+- Travel Room (`#/travel`) — owner Travel Agent
+- NFL Game Hub (`#/nfl`) — owner Blitz
+- NBA Game Hub (`#/nba`) — owner BetGuru
+- Money Room (`#/money`) — owner Money Maker Bot
+- ApexTitan Shop (`#/shop`) — owner ApexTitan
+
+Orbit the campus, click a building, and the camera flies in. Each room opens a panel of placeholder boards. Copy lives in `lib/sections.ts` so specialists can later swap in static JSON.
+
+**v1 rules:** placeholder content only. No live picks, no fabricated numbers, no Grok Bot or API credentials. Approve / send / refresh controls stay on the page as placeholders and do not talk to a bot. Do not run scripts under `skill/reference/scripts` — those belong to the upstream private control-center setup and expect secrets.
+
+Fork: https://github.com/GhostPapii21/grok-bot-3d-campus
+
+---
+
+# Upstream readme (original demo)
+
 # Grok Bot Control Center (demo)
 
 <!-- LAUNCH DAY: replace sarbarshem (here and in skill/SKILL.md): sed -i 's/sarbarshem/<github-owner>/g' README.md skill/SKILL.md -->
