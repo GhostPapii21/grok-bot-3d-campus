@@ -7,6 +7,8 @@ import {
   formatStatusTime,
   hasPostedBoard,
   itemsForRoom,
+  lastRunFailed,
+  stateTint,
   useCampusStatus,
   usePostedCount,
   waitingMessage,
@@ -146,7 +148,11 @@ export function BotBoardView(props: { board: BotBoard }) {
             <div key={i} style={{ marginBottom: 7, paddingBottom: 6, borderBottom: "1px solid #e4dcc8" }}>
               <div style={{ fontSize: 13.5, fontWeight: 700 }}>{r.name}</div>
               <div style={{ fontSize: 12, color: "#444" }}>{r.schedule}</div>
-              <div style={{ fontSize: 11.5, color: "#555" }}><b style={{ textTransform: "uppercase" }}>{r.state}</b> · last run {formatLastRun(r.lastRun)}</div>
+              <div style={{ fontSize: 11.5, color: "#555" }}>
+                <b style={{ textTransform: "uppercase", color: stateTint(r.state) }}>{r.state}</b>
+                {" · last run "}
+                <span style={{ color: lastRunFailed(r.lastRun) ? "#c62828" : undefined, fontWeight: lastRunFailed(r.lastRun) ? 700 : 400 }}>{formatLastRun(r.lastRun)}</span>
+              </div>
             </div>
           )) : <div style={empty}>No routines</div>}
           <div style={sec}>OPEN TASKS</div>
@@ -189,7 +195,7 @@ export function WorkingOnHud(props: { onOpenBot: (bot: string) => void }) {
 }
 
 export function roomIdForBot(botName: string): string | null {
-  const bot = bots.find((b) => b.name === botName);
+  const bot = bots.find((b) => b.name === botName || botName.startsWith(b.name) || b.id === botName);
   if (!bot) return null;
   return bot.roomId || "hq";
 }

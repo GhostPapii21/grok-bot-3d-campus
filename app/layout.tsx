@@ -1,5 +1,5 @@
 import { PALETTE } from "../lib/theme";
-export const metadata = { title: "Rico's Campus · v1 prototype", description: "3D campus prototype: Ghost HQ, Travel Room, NFL Game Hub, NBA Game Hub, Money Room, ApexTitan Shop. Placeholder content plus posted status only." };
+export const metadata = { title: "Rico's Campus · v3", description: "3D campus prototype: Ghost HQ, Travel Room, NFL Game Hub, NBA Game Hub, Money Room, ApexTitan Shop. Placeholder content plus posted status only." };
 export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" as const, themeColor: PALETTE.page };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

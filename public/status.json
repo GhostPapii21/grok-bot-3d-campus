@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-10T00:59:00-05:00",
+  "updatedAt": "2026-11-10T01:06:00-05:00",
   "bots": [
     {
       "bot": "Ghost6",
@@ -135,20 +135,196 @@
       "openTasks": []
     },
     {
-      "bot": "Blitz",
+      "bot": "Blitz (NFL Research) \u00b7 NFL Researcher",
       "id": "0bcd66da-bca8-4d8c-80f0-a827a79ab95b",
       "room": "nfl",
-      "workingOn": [],
-      "routines": [],
-      "openTasks": []
+      "workingOn": [
+        {
+          "task": "NFL Savant data fetcher for sportsbook-odds-bridge (PR, unmerged)",
+          "state": "in progress",
+          "updatedAt": "Nov 10, 2026 12:57 AM ET"
+        },
+        {
+          "task": "Historical sim_v6 100k research run",
+          "state": "waiting on cloud result",
+          "updatedAt": "Nov 9, 2026 ET"
+        }
+      ],
+      "routines": [
+        {
+          "name": "NFL game-day script run",
+          "schedule": "Thu 4:30 PM, Sun 7:00 AM, Mon 4:30 PM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 2026 4:37 PM ET"
+        },
+        {
+          "name": "NFL inactives and reprice",
+          "schedule": "Thu 6:50 PM; Sun 11:30 AM, 2:35 PM, 6:50 PM; Mon 6:50 PM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 2026 6:56 PM ET"
+        },
+        {
+          "name": "NFL practice report digest",
+          "schedule": "Wed-Fri 5:00 PM",
+          "state": "enabled",
+          "lastRun": "Nov 6, 2026 5:03 PM ET (failed)"
+        },
+        {
+          "name": "NFL breaking news watch",
+          "schedule": "Wed-Fri noon and 5:00 PM",
+          "state": "enabled",
+          "lastRun": "Nov 6, 2026 5:02 PM ET (failed)"
+        },
+        {
+          "name": "NFL weekly script model daily refresh",
+          "schedule": "Mon-Sat 10:00 AM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 2026 10:07 AM ET (failed)"
+        },
+        {
+          "name": "NFL weekly Odds API credit report",
+          "schedule": "Sun 9:30 PM",
+          "state": "enabled",
+          "lastRun": "Nov 8, 2026 9:36 PM ET (failed)"
+        },
+        {
+          "name": "NFL DraftKings and FanDuel line movement",
+          "schedule": "Fri-Sun every 4 hours 8 AM-8 PM",
+          "state": "enabled",
+          "lastRun": "Nov 8, 2026 8:17 PM ET (failed)"
+        },
+        {
+          "name": "Weekly Outlier NFL pull + projections",
+          "schedule": "Thu 10:00 AM",
+          "state": "paused",
+          "lastRun": "Nov 5, 2026 10:06 AM ET"
+        },
+        {
+          "name": "NFL play log and read grading",
+          "schedule": "Sun 4:45 PM and 8:15 PM; Mon, Tue, Fri 8:00 AM",
+          "state": "paused",
+          "lastRun": "Nov 6, 2026 8:10 AM ET"
+        },
+        {
+          "name": "NFL daily Ghost6 edge handoff and weekly lessons",
+          "schedule": "daily 11:00 AM",
+          "state": "paused",
+          "lastRun": "never"
+        }
+      ],
+      "openTasks": [
+        {
+          "task": "Week 9 official gamebooks (15 games) PR #7 nfl-matchup-database awaiting Rico's review",
+          "state": "done, unmerged",
+          "updatedAt": "Nov 10, 2026 1:06 AM ET"
+        },
+        {
+          "task": "Model readiness gates NFL-44/45/49/56 (projection_ready=false)",
+          "state": "open",
+          "updatedAt": "Nov 9, 2026 4:37 PM ET"
+        },
+        {
+          "task": "Old model PR1 expanded tests rerun",
+          "state": "open",
+          "updatedAt": "Nov 8, 2026 ET"
+        },
+        {
+          "task": "README draft separating NFL-56 goal from readiness (needs Rico's OK to commit)",
+          "state": "drafted",
+          "updatedAt": "Nov 9, 2026 ET"
+        }
+      ]
     },
     {
-      "bot": "BetGuru",
+      "bot": "BetGuru \u00b7 Sports Bet Savant",
       "id": "ff79913d-8e37-4af9-b035-11a26727df67",
       "room": "nba",
-      "workingOn": [],
-      "routines": [],
-      "openTasks": []
+      "workingOn": [
+        {
+          "task": "NBA prop simulator backtest (PR #5, not adopted: FanDuel no-vig Brier 0.249 beat sim 0.273 raw and the current model 0.264)",
+          "state": "done, awaiting Rico",
+          "updatedAt": "Nov 10, 2026 1:04 AM ET"
+        },
+        {
+          "task": "Proposed next: standalone NBA minutes model + Nov 7-8 box score backfill",
+          "state": "awaiting Rico OK",
+          "updatedAt": "Nov 10, 2026 1:04 AM ET"
+        }
+      ],
+      "routines": [
+        {
+          "name": "NFL game-day build",
+          "schedule": "Sun, Mon, Thu 12:10 PM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 12:13 PM ET"
+        },
+        {
+          "name": "NBA real-price line snapshots",
+          "schedule": "Daily 4:30 and 7:30 PM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 7:33 PM ET"
+        },
+        {
+          "name": "Nightly NBA defense profile update",
+          "schedule": "Daily 2:20 AM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 2:20 AM ET (failed)"
+        },
+        {
+          "name": "NBA closing-line grade",
+          "schedule": "Daily 2:45 AM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 2:52 AM ET (failed)"
+        },
+        {
+          "name": "Tipster pick tracker",
+          "schedule": "Daily 11:41 PM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 11:45 PM ET"
+        },
+        {
+          "name": "Morning huddle brief",
+          "schedule": "Daily 8:58 AM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 9:11 AM ET (failed)"
+        },
+        {
+          "name": "NBA WNBA weekly improvement review",
+          "schedule": "Mondays 10:00 AM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 10:01 AM ET (failed)"
+        },
+        {
+          "name": "NFL pre-kickoff weather alert",
+          "schedule": "Sun, Mon, Thu 11:15 AM, 3:15 PM, 7:15 PM",
+          "state": "enabled",
+          "lastRun": "Nov 9, 7:18 PM ET"
+        },
+        {
+          "name": "Film and Next Gen Stats build",
+          "schedule": "Tue and Wed 1:13 AM",
+          "state": "enabled",
+          "lastRun": "Nov 4, 1:17 AM ET"
+        },
+        {
+          "name": "NBA WNBA daily edge handoff to Ghost6",
+          "schedule": "Daily 5:00 PM",
+          "state": "paused",
+          "lastRun": "never"
+        }
+      ],
+      "openTasks": [
+        {
+          "task": "Model paper-only; Ghost6 edge handoff paused until the model beats the market",
+          "state": "open",
+          "updatedAt": "Nov 10, 2026 1:04 AM ET"
+        },
+        {
+          "task": "Linear NBA-3/4/5/8 open; roles data refresh; backtest archive upload",
+          "state": "open",
+          "updatedAt": "Nov 10, 2026 1:04 AM ET"
+        }
+      ]
     },
     {
       "bot": "Money Maker Bot",

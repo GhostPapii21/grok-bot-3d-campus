@@ -113,8 +113,23 @@ export function formatStatusTime(value: string | null): string {
 }
 
 export function formatLastRun(lastRun: string | null): string {
-  if (!lastRun) return "Never run"
+  if (!lastRun || /^(never|never run)$/i.test(lastRun.trim())) return "Never run"
   return formatStatusTime(lastRun)
+}
+
+export function lastRunFailed(lastRun: string | null): boolean {
+  return !!lastRun && /\bfailed\b/i.test(lastRun)
+}
+
+/** Color for a state pill. Pass failed=true to force last-run failure red. */
+export function stateTint(state: string, failed = false, monitor = false): string {
+  if (failed) return monitor ? "#ff6b6b" : "#c62828"
+  const s = (state || "").toLowerCase()
+  if (s === "enabled" || s === "in progress") return monitor ? "#7dff9a" : "#1b7a3a"
+  if (s.includes("paused") || s.includes("waiting") || s.includes("awaiting")) return monitor ? "#ffd36b" : "#b86a00"
+  if (s.includes("blocked") || s.includes("failed")) return monitor ? "#ff6b6b" : "#c62828"
+  if (s.includes("done") || s === "drafted" || s === "open") return monitor ? "#9ad0ff" : "#1a4a8a"
+  return monitor ? "#c8a84b" : "#555555"
 }
 
 export function isPosted(item: { task: string; state: string }) {

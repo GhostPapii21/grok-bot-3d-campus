@@ -25,6 +25,8 @@ export default function RoomInterior3D(props: {
   const file = useCampusStatus();
   const [readBoard, setReadBoard] = useState(false);
   const [ready, setReady] = useState(false);
+  const openBoardRef = useRef<() => void>(() => {});
+  openBoardRef.current = () => setReadBoard(true);
   const { team, phone } = props;
 
   const boards = boardsForRoom(file, team.id, team.lead?.name);
@@ -57,19 +59,23 @@ export default function RoomInterior3D(props: {
       controls.enableDamping = true;
       controls.dampingFactor = 0.08;
       controls.enablePan = false;
-      controls.minDistance = 2.2;
+      controls.minDistance = team.id === "travel" ? 3 : 1.6;
       controls.maxDistance = team.id === "travel" ? 16 : 9;
       controls.minPolarAngle = 0.35;
       controls.maxPolarAngle = Math.PI / 2 - 0.08;
       if (team.id === "travel") {
-        controls.target.set(0, 1.2, -2);
-        camera.position.set(0.8, 2.2, 8.5);
+        controls.target.set(0.2, 1.5, -2);
+        camera.position.set(0.3, 2.35, 9.0);
       } else if (team.id === "money") {
         controls.target.set(0, 1.4, -1.2);
         camera.position.set(1.6, 2.0, 6.2);
+      } else if (team.id === "hq") {
+        controls.target.set(0.15, 2.0, -5.8);
+        camera.position.set(0.15, 2.05, -0.4);
       } else {
-        controls.target.set(0, 1.55, -2.2);
-        camera.position.set(0, 1.7, 5.4);
+        // Face the back-wall board so its text is readable at the default view.
+        controls.target.set(0, 2.05, -5.8);
+        camera.position.set(0, 2.05, -1.5);
       }
       controls.update();
 
@@ -96,6 +102,37 @@ export default function RoomInterior3D(props: {
       const ro = new ResizeObserver(resize);
       ro.observe(el);
 
+      const raycaster = new THREE.Raycaster();
+      const ptr = new THREE.Vector2();
+      let down: { x: number; y: number } | null = null;
+      const canvas = renderer.domElement;
+      const hitBoard = (e: PointerEvent) => {
+        const r = canvas.getBoundingClientRect();
+        ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+        raycaster.setFromCamera(ptr, camera);
+        const hits = raycaster.intersectObjects(scene.children, true);
+        return hits.some((h) => {
+          let o: THREE.Object3D | null = h.object;
+          while (o) {
+            if (o.userData.boardClick) return true;
+            o = o.parent;
+          }
+          return false;
+        });
+      };
+      const onDown = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY }; };
+      const onMove = (e: PointerEvent) => { canvas.style.cursor = hitBoard(e) ? "pointer" : ""; };
+      const onUp = (e: PointerEvent) => {
+        if (!down) return;
+        const dx = e.clientX - down.x, dy = e.clientY - down.y;
+        down = null;
+        if (dx * dx + dy * dy > 36) return;
+        if (hitBoard(e)) openBoardRef.current();
+      };
+      canvas.addEventListener("pointerdown", onDown);
+      canvas.addEventListener("pointerup", onUp);
+      canvas.addEventListener("pointermove", onMove);
+
       const loop = () => {
         if (dead) return;
         raf = requestAnimationFrame(loop);
@@ -112,6 +149,9 @@ export default function RoomInterior3D(props: {
         dead = true;
         cancelAnimationFrame(raf);
         ro.disconnect();
+        canvas.removeEventListener("pointerdown", onDown);
+        canvas.removeEventListener("pointerup", onUp);
+        canvas.removeEventListener("pointermove", onMove);
         controls.dispose();
         disposables.forEach((d) => d.dispose?.());
         scene.traverse((o) => {
@@ -206,6 +246,9 @@ export default function RoomInterior3D(props: {
           <button onClick={props.onNext} title="Next room" style={{ ...navBtn, marginInlineEnd: "auto" }}>
             {props.nextName} →
           </button>
+          {!readBoard && (
+            <div style={{ color: "#fff", fontSize: phone ? 12 : 13, opacity: 0.85, marginInlineEnd: 8 }}>Tap a board to read it</div>
+          )}
           <button
             onClick={() => setReadBoard((v) => !v)}
             style={{
@@ -280,6 +323,8 @@ function boardMesh(board: BotBoard, style: BoardStyle, w: number, h: number) {
   const face = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }));
   face.position.z = 0.015;
   frame.add(face);
+  frame.userData.boardClick = true;
+  face.userData.boardClick = true;
   return frame;
 }
 
@@ -418,14 +463,14 @@ function placeBoards(scene: THREE.Scene, boards: BotBoard[], style: BoardStyle, 
     return;
   }
   if (id === "travel") {
-    const a = boardMesh(boards[0], "whiteboard", 2.2, 2.9);
-    a.position.set(-4.2, 1.7, 0.8);
-    a.rotation.y = 0.35;
+    const a = boardMesh(boards[0], "whiteboard", 2.3, 3.0);
+    a.position.set(-3.5, 1.75, 1.8);
+    a.rotation.y = 0.28;
     scene.add(a);
     return;
   }
-  const a = boardMesh(boards[0], style, 3.2, 3.6);
-  a.position.set(0, 2.1, -5.8);
+  const a = boardMesh(boards[0], style, 3.5, 3.9);
+  a.position.set(0, 2.15, -5.8);
   scene.add(a);
 }
 
@@ -676,14 +721,28 @@ function buildTravel(
     if (!phone) waterGeo.computeVertexNormals();
   });
 
-  // palms
+  // sun — upper right of the default view
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(1.35, 20, 20), new THREE.MeshBasicMaterial({ color: 0xffe566 }));
+  sun.position.set(5.8, 8.6, -7.5);
+  scene.add(sun);
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(2.7, 20, 20),
+    new THREE.MeshBasicMaterial({ color: 0xffc14a, transparent: true, opacity: 0.35, depthWrite: false }),
+  );
+  glow.position.copy(sun.position);
+  scene.add(glow);
+  const sunLight = new THREE.DirectionalLight(0xfff0c8, 1.05);
+  sunLight.position.copy(sun.position);
+  scene.add(sunLight);
+
+  // palms in the default camera frustum (mid-foreground, not only at the frame edges)
   const palmSpots: Array<[number, number, number]> = [
-    [-6.5, 0, 3.2],
-    [-5.2, 0, 5.5],
-    [6.2, 0, 2.8],
-    [5.4, 0, 6.0],
-    [-8.5, 0, 0.5],
-    [8.0, 0, 1.2],
+    [-3.15, 0, 4.6],
+    [-2.25, 0, 2.7],
+    [3.05, 0, 4.8],
+    [2.35, 0, 2.6],
+    [-5.4, 0, 1.2],
+    [5.2, 0, 1.4],
   ];
   (phone ? palmSpots.slice(0, 4) : palmSpots).forEach((p) => scene.add(makePalm(p[0], p[1], p[2])));
 
@@ -707,15 +766,39 @@ function buildTravel(
 
   const plane = makeAirplane();
   scene.add(plane);
+  const TRAIL = 42;
+  const trailPos = new Float32Array(TRAIL * 3);
+  const trailGeo = new THREE.BufferGeometry();
+  trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3));
+  const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75 }));
+  scene.add(trail);
+  const hist: Array<{ x: number; y: number; z: number }> = [];
+  let lastU = 0;
+  const pathAt = (u: number) => {
+    const x = -9 + u * 18;
+    const z = 0.5 - u * 3.0;
+    const y = 5.7 + Math.sin(u * Math.PI) * 0.35;
+    return { x, y, z };
+  };
   ticks.push((t) => {
-    const a = t * 0.22;
-    const x = Math.cos(a) * 16;
-    const z = Math.sin(a) * 11 - 8;
-    const y = 7.2 + Math.sin(a * 2) * 0.45;
-    const nx = Math.cos(a + 0.04) * 16;
-    const nz = Math.sin(a + 0.04) * 11 - 8;
-    plane.position.set(x, y, z);
-    plane.lookAt(nx, y, nz);
+    // ~8s loop; start already in frame (offset 2s) so the plane is visible soon after entering.
+    const period = 8;
+    const u = ((t + 2.0) % period) / period;
+    if (u < lastU) hist.length = 0;
+    lastU = u;
+    const p = pathAt(u);
+    const n = pathAt(Math.min(u + 0.02, 0.999));
+    plane.position.set(p.x, p.y, p.z);
+    plane.lookAt(n.x, n.y, n.z);
+    hist.unshift(p);
+    if (hist.length > TRAIL) hist.pop();
+    for (let i = 0; i < TRAIL; i++) {
+      const q = hist[Math.min(i, hist.length - 1)] || p;
+      trailPos[i * 3] = q.x;
+      trailPos[i * 3 + 1] = q.y;
+      trailPos[i * 3 + 2] = q.z;
+    }
+    trailGeo.attributes.position.needsUpdate = true;
   });
 }
 
@@ -770,20 +853,39 @@ function makeAirplane() {
   const g = new THREE.Group();
   const white = mat("#f4f0e6", { rough: 0.45 });
   const blue = mat("#2a4a7a", { rough: 0.45 });
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 1.6, 10), white);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 1.85, 10), white);
   body.rotation.z = Math.PI / 2;
   g.add(body);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.28, 10), white);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.32, 10), white);
   nose.rotation.z = -Math.PI / 2;
-  nose.position.x = 0.92;
+  nose.position.x = 1.05;
   g.add(nose);
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, 1.7), blue);
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 2.05), blue);
   g.add(wing);
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.28, 0.06), blue);
-  tail.position.set(-0.7, 0.18, 0);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.34, 0.07), blue);
+  tail.position.set(-0.82, 0.2, 0);
   g.add(tail);
-  const stab = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.6), blue);
-  stab.position.set(-0.7, 0.05, 0);
+  const stab = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.7), blue);
+  stab.position.set(-0.82, 0.05, 0);
   g.add(stab);
+  const bannerTex = canvasTex(256, 64, (c) => {
+    c.fillStyle = "#f4f0e6";
+    c.fillRect(0, 0, 256, 64);
+    c.strokeStyle = "#2a4a7a";
+    c.lineWidth = 8;
+    c.strokeRect(3, 3, 250, 58);
+    c.fillStyle = "#2a4a7a";
+    c.font = "700 36px system-ui, sans-serif";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("TRAVEL", 128, 34);
+  });
+  const cord = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.02, 0.02), mat("#2a2a2a"));
+  cord.position.set(-1.45, -0.02, 0);
+  g.add(cord);
+  const banner = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.44), new THREE.MeshBasicMaterial({ map: bannerTex, side: THREE.DoubleSide }));
+  banner.position.set(-2.4, -0.06, 0);
+  g.add(banner);
+  g.scale.setScalar(1.55);
   return g;
 }
