@@ -30,6 +30,7 @@ export async function POST(req: Request) {
   if (!url || !key) return Response.json({ ok: false, error: "Webhook not configured" }, { status: 503 });
   last = now;
   const text = isRefresh ? REFRESH_MSG : `${items.length} request(s) from the control center:\n` + items.map((m, i) => `${i + 1}. ${m}`).join("\n");
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(header)) return Response.json({ ok: false, error: "Bad webhook header name (check WEBHOOK_KEY_HEADER)" }, { status: 503 });
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (header.toLowerCase() === "authorization") headers.Authorization = `Bearer ${key}`; else headers[header] = key;
   try {

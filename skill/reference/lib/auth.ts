@@ -23,7 +23,8 @@ export function makeToken() {
 export function validToken(tok?: string | null) {
   if (!tok || !secret() || !accessToken()) return false;
   const [v, exp, mac] = tok.split(".");
-  if (v !== "v1" || !exp || !mac || Number(exp) * 1000 < Date.now()) return false;
+  const e = Number(exp);
+  if (v !== "v1" || !/^\d{1,12}$/.test(exp || "") || !mac || !Number.isFinite(e) || e * 1000 < Date.now()) return false;
   const want = sign(`${exp}.${tag()}`);
   return mac.length === want.length && crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(want));
 }

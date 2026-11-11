@@ -121,9 +121,8 @@ function initials(name: string): string {
   return parts[0][0] + parts[1][0];
 }
 function timeKey(s: string): number {
-  const m = s.match(/(\d+)\.(\d+)(?:\s+(\d+):(\d+))?/);
-  if (!m) return 0;
-  return Number(m[2]) * 1e6 + Number(m[1]) * 1e4 + Number(m[3] || 0) * 100 + Number(m[4] || 0);
+  // feed times are "D.M HH:MM" (no year) or ISO; sort by the real moment so December items stay ahead of January ones
+  return sinceAt(s) ?? 0;
 }
 function qpt(p0: { x: number; y: number }, c: { x: number; y: number }, p1: { x: number; y: number }, k: number) {
   const a = (1 - k) * (1 - k), b = 2 * (1 - k) * k, d = k * k;
@@ -166,11 +165,33 @@ function shortWhen(ms: number, now: number): string {
   if (ms - now < 864e5 && ms > now) return `${p.hh}:${p.mm}`;
   return `${p.d}.${p.m}`;
 }
+// UTC offset (ms) of the configured zone TZ at moment `ms`
+function tzOffsetMs(ms: number): number {
+  try {
+    const f = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" } as any).formatToParts(new Date(ms));
+    const g = (k: string) => Number((f.find((x) => x.type === k) || { value: "0" }).value);
+    return Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"), g("second")) - Math.floor(ms / 1000) * 1000;
+  } catch (e) { return -new Date(ms).getTimezoneOffset() * 60000; }
+}
+// wall-clock time in TZ -> epoch ms (two passes so a DST change between guess and answer is handled)
+function zonedToMs(y: number, mo: number, d: number, hh: number, mm: number): number {
+  const wall = Date.UTC(y, mo - 1, d, hh, mm);
+  let t = wall - tzOffsetMs(wall);
+  t = wall - tzOffsetMs(t);
+  return t;
+}
+// "D.M HH:MM" carries no year: take the most recent such moment that is not more than a day in the future,
+// so "30.12 22:00" read on 2 January is last December, not next December. The time is read in TZ, not the viewer's zone.
 function sinceAt(s: string): number | null {
   if (/^\d{4}-\d{2}-\d{2}T/.test(s)) { const v = Date.parse(s); return isNaN(v) ? null : v; }
   const m = s.match(/(\d+)\.(\d+)(?:\s+(\d+):(\d+))?/);
   if (!m) return null;
-  return new Date(2026, Number(m[2]) - 1, Number(m[1]), Number(m[3] || 0), Number(m[4] || 0)).getTime();
+  const d = Number(m[1]), mo = Number(m[2]), hh = Number(m[3] || 0), mm = Number(m[4] || 0);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const now = Date.now();
+  const y = Number(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, year: "numeric" }).format(new Date(now)));
+  const t = zonedToMs(y, mo, d, hh, mm);
+  return t > now + 864e5 ? zonedToMs(y - 1, mo, d, hh, mm) : t;
 }
 function teamAlerts(team: Team, now: number): string[] {
   const out: string[] = [];
@@ -2586,7 +2607,7 @@ function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h:
   // ---- routines board on a stand ----
   const st = portrait ? { x: 0, z: G.D * 0.45, w: 600, h: 150, rot: 0, lift: 4 } : { x: G.W * 0.35, z: G.D * 0.06, w: 340, h: 230, rot: -14, lift: 16 };
   const rtRows = rts.slice(0, portrait ? 2 : 5);
-  const fmtNext = (r: Routine) => { const n = nextAt(r); if (!n) return r.state === "paused" ? "Paused" : "—"; const d = new Date(n); return `${d.getDate()}.${d.getMonth() + 1}`; };
+  const fmtNext = (r: Routine) => { const n = nextAt(r); if (!n) return r.state === "paused" ? "Paused" : "—"; const p = ilParts(n); return `${p.d}.${p.m}`; };
   const stand = (
     <div key="stand" style={{ ...S3, transform: at(st.x, 0, st.z) + ` rotateY(${st.rot}deg)` }}>
       {block("p1", -st.w * 0.36, 0, 0, 12, st.lift + 4, 12, { top: "#3a3a3c", front: "#3a3a3c", side: "#2c2c2e" })}
