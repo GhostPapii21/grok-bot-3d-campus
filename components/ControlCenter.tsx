@@ -4,7 +4,8 @@ import { useGrokTheme } from "../lib/theme";
 import { TZ } from "../lib/tz";
 import { PLACEHOLDER, sectionsById } from "../lib/sections";
 import Campus3D from "./Campus3DLazy";
-import { OwnerBotCard, HqBotRoster, WorkingOnBoard, WorkingOnHud, usePostedCount, roomIdForBot } from "./ChatAndStatus";
+import { OwnerBotCard, HqBotRoster, WorkingOnBoard, WorkingOnHud, usePostedCount, roomIdForBot, CampusFeedPanel, CampusFeedTicker } from "./ChatAndStatus";
+import { useCampusFeed } from "../lib/feed";
 import { themeFloorBg, ThemeRoomExtras } from "./themeProps";
 import RoomInterior3D from "./RoomInterior3DLazy";
 
@@ -2795,6 +2796,9 @@ function ControlCenterInner() {
   const [inFocus, setInFocus] = useState(false);
   const [hot, setHot] = useState<string | null>(null);
   const [feedOpen, setFeedOpen] = useState(false);
+  const [feedCollapsed, setFeedCollapsed] = useState(false);
+  const [replayN, setReplayN] = useState(0);
+  const campusFeedFile = useCampusFeed();
   const [inboxOpen, setInboxOpen] = useState(false);
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [toast, setToast] = useState<{ msg: string; ok: boolean; t0: number; kind?: "tray" | "batch" | "queued" | "sent" | "failed" | "wait"; err?: string } | null>(null);
@@ -3106,7 +3110,7 @@ function ControlCenterInner() {
     <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0, background: th.bg.subtle, overflow: "hidden", height: campusH, minHeight: 420 }}>
       {!(roomTeam && classic) && (
         <Scene t={t} teams={TEAMS} pos={pos} idxOf={idxOf} alertsOf={alertsOf} openOf={openOf} freshOf={freshOf} focus={room} dim={filter} hot={hot} padR={padR} padB={padB} fitBoxes={fitBoxes}
-          cmd={cmd} view={viewRef} clockLines={clockLines} soonN={soon.length} onPick={(p: ScenePick) => enter(p.team, p.what === "person" ? "person" : (p.what as PanelTab | undefined), p.member)} onHot={setHot} onClock={() => openDrawer("clock")} tip={sceneTip} onFail={() => setGlFail(true)} />
+          cmd={cmd} view={viewRef} clockLines={clockLines} soonN={soon.length} onPick={(p: ScenePick) => enter(p.team, p.what === "person" ? "person" : (p.what as PanelTab | undefined), p.member)} onHot={setHot} onClock={() => openDrawer("clock")} tip={sceneTip} onFail={() => setGlFail(true)} campusFeed={campusFeedFile.entries} replayN={replayN} />
       )}
 
       {/* floating HUD: posted work from status.json. The upstream approval / in-progress placeholder windows are hidden. */}
@@ -3122,7 +3126,7 @@ function ControlCenterInner() {
         const prevName = TEAMS[(i - 1 + n) % n].name;
         const nextName = TEAMS[(i + 1) % n].name;
         if (!interiorFail) {
-          return <RoomInterior3D team={roomTeam} phone={phone} prevName={prevName} nextName={nextName} onPrev={() => roomStep(-1)} onNext={() => roomStep(1)} onExit={exit} onFail={() => setInteriorFail(true)} />;
+          return <RoomInterior3D team={roomTeam} phone={phone} prevName={prevName} nextName={nextName} onPrev={() => roomStep(-1)} onNext={() => roomStep(1)} onExit={exit} onFail={() => setInteriorFail(true)} onReplay={() => setReplayN((n) => n + 1)} />;
         }
         return <Room3D team={roomTeam} idx={idxOf[roomTeam.id] || 0} t={t} vp={vp} phone={phone} wall={inWall} focus={inFocus} member={pMember} decisions={decisions} fresh={freshMap}
           prevName={prevName} nextName={nextName} onWall={setInWall} onFocus={setInFocus} onMember={setPMember} onPrev={() => roomStep(-1)} onNext={() => roomStep(1)} onExit={exit}
@@ -3203,16 +3207,17 @@ function ControlCenterInner() {
         </div>
       )}
 
-      {/* live ticker */}
-      {tick && !roomTeam && !(phone && sheet) && (
+      {/* real campus feed ticker (replaces the demo LIVE ticker) */}
+      {!roomTeam && !(phone && sheet) && (
         <div style={{ position: "absolute", bottom: phone ? 70 : 14, left: phone ? 10 : 14, right: phone ? 10 : 14, display: "flex", justifyContent: "center", zIndex: 6, pointerEvents: "none" }}>
-          <div style={{ ...pill, pointerEvents: "auto", width: "min(700px, 100%)", maxWidth: "min(700px, 100%)", height: phone ? 50 : 54, gap: 10, paddingInlineEnd: 6, boxSizing: "border-box", borderRadius: 22, flex: "0 0 auto" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: th.text.danger }}><span style={{ width: 8, height: 8, borderRadius: 4, background: th.text.danger, opacity: 0.5 + 0.5 * Math.sin(t * 5) }} />LIVE</span>
-            <button onClick={() => enter(tick.team.id, "news")} style={{ opacity: tickO, transform: `translateY(${(1 - tickO) * 6}px)`, background: "none", border: "none", padding: 0, font: "inherit", fontSize: phone ? 13 : 14, lineHeight: phone ? "17px" : "19px", color: th.text.primary, cursor: "pointer", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", minWidth: 0, flex: "1 1 0", textAlign: "start", alignSelf: "center", maxHeight: phone ? 34 : 38 } as any}>
-              <b>{tick.team.name}</b> <span style={{ color: th.text.tertiary }}>{tick.time}</span> · {tick.text}
-            </button>
-            <button onClick={() => { setFeedOpen(!feedOpen); setInboxOpen(false); setDrawer(null); }} style={{ font: "inherit", fontSize: 13, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${th.border.default}`, background: feedOpen ? th.fill.accentSubtle : th.bg.subtle, color: th.text.primary, cursor: "pointer", whiteSpace: "nowrap" }}>Full feed</button>
-          </div>
+          <CampusFeedTicker
+            open={feedOpen}
+            collapsed={feedCollapsed}
+            onToggleOpen={() => { setFeedOpen(!feedOpen); setInboxOpen(false); setDrawer(null); }}
+            onToggleCollapsed={() => setFeedCollapsed(!feedCollapsed)}
+            onReplay={() => setReplayN((n) => n + 1)}
+            phone={phone}
+          />
         </div>
       )}
 
@@ -3275,14 +3280,9 @@ function ControlCenterInner() {
         </div>
       )}
 
-      {/* feed drawer */}
-      <div style={{ position: "absolute", bottom: 70, insetInlineEnd: 14, width: "min(380px, calc(100% - 28px))", maxHeight: "min(65%, 520px)", overflowY: "auto", zIndex: 7, display: "flex", flexDirection: "column", gap: 8, padding: 4, opacity: feedOpen ? 1 : 0, transform: feedOpen ? "translateY(0)" : "translateY(20px)", pointerEvents: feedOpen ? "auto" : "none", transition: "opacity 250ms, transform 250ms" }}>
-        {feed.map((a, i) => (
-          <button key={i} onClick={() => enter(a.team.id, "news")} style={{ textAlign: "start", font: "inherit", cursor: "pointer", background: th.bg.elevated, border: `1px solid ${freshMap["a:" + a.team.id + ":" + a.time + ":" + a.text.slice(0, 40)] ? th.fill.accent : th.border.subtle}`, borderRadius: "18px 18px 18px 6px", padding: "8px 12px", boxShadow: "0 4px 14px rgba(0,0,0,.10)", color: th.text.primary }}>
-            <div style={{ fontSize: 12, color: th.text.tertiary }}><b style={{ color: th.text.accent }}>{a.team.name}</b> · {a.time}</div>
-            <div style={{ fontSize: 14, lineHeight: "20px" }}>{a.text}</div>
-          </button>
-        ))}
+      {/* campus feed drawer (real entries from feed.json) */}
+      <div style={{ position: "absolute", bottom: 70, insetInlineEnd: 14, width: "min(380px, calc(100% - 28px))", maxHeight: "min(65%, 520px)", overflowY: "auto", zIndex: 7, opacity: feedOpen ? 1 : 0, transform: feedOpen ? "translateY(0)" : "translateY(20px)", pointerEvents: feedOpen ? "auto" : "none", transition: "opacity 250ms, transform 250ms", background: th.bg.elevated, borderRadius: 18, border: `1px solid ${th.border.subtle}`, boxShadow: "0 8px 28px rgba(0,0,0,.2)", padding: feedOpen ? "12px 14px" : 0 }}>
+        {feedOpen && <CampusFeedPanel compact onReplay={() => setReplayN((n) => n + 1)} />}
       </div>
 
       {/* inbox drawer: all papers */}
@@ -3511,4 +3511,4 @@ export default function ControlCenter(props: { initial: DataShape; demo?: DemoAp
 }
 
 // shared with the WebGL scene
-export { roomGeo, agentsOf, W3, ctrlFor, qpt, PLAZA, TREES, hexMix, campusGrow };
+export { roomGeo, agentsOf, W3, ctrlFor, qpt, PLAZA, ROOM_POS, TREES, hexMix, campusGrow };

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-10T01:06:00-05:00",
+  "updatedAt": "2026-11-11T17:10:00-05:00",
   "bots": [
     {
       "bot": "Ghost6",
@@ -46,9 +46,9 @@
       "room": null,
       "workingOn": [
         {
-          "task": "Campus v3: room boards, Money Room bank, Travel Room beach",
+          "task": "Campus v4: bot avatars, themed rooms, campus feed",
           "state": "in progress",
-          "updatedAt": "2026-11-10T00:59:00-05:00"
+          "updatedAt": "2026-11-11T17:10:00-05:00"
         }
       ],
       "routines": [
@@ -331,8 +331,46 @@
       "id": "331338ee-4a28-47ec-803b-561dba4679d5",
       "room": "money",
       "workingOn": [],
-      "routines": [],
-      "openTasks": []
+      "routines": [
+        {
+          "name": "Quiet opportunity check",
+          "schedule": "every 2 hours",
+          "state": "paused",
+          "lastRun": "Nov 6, 2026 7:54 AM ET"
+        }
+      ],
+      "openTasks": [
+        {
+          "task": "FB Marketplace: DJI Avata bundle $1,000 (photos and ad ready)",
+          "state": "waiting on Rico to post from his app",
+          "updatedAt": "Nov 5, 2026 3:16 PM ET"
+        },
+        {
+          "task": "FB Marketplace: PlayStation Portal $180 (photos and ad ready)",
+          "state": "waiting on Rico to post from his app",
+          "updatedAt": "Nov 5, 2026 3:16 PM ET"
+        },
+        {
+          "task": "Upwork bid drafts: survey report $1,500, lead tracker ~$150, logo refinement $70, Stitch Shed logo $100, PowerPoint template $35, Etsy tracker ~$160, glow $175",
+          "state": "drafted, awaiting Rico approve/deny; none submitted",
+          "updatedAt": "Nov 6, 2026 3:59 AM ET"
+        },
+        {
+          "task": "Upwork inventory tracker bid $230",
+          "state": "on hold per Rico",
+          "updatedAt": "Nov 5, 2026 1:57 PM ET"
+        },
+        {
+          "task": "Gumroad nonprofit template pack $12",
+          "state": "blocked: existing account needs Rico's sign-in",
+          "updatedAt": "Nov 5, 2026 8:15 AM ET"
+        },
+        {
+          "task": "Base USDC wallet",
+          "state": "0 USDC, no revenue yet",
+          "updatedAt": "Nov 6, 2026 7:54 AM ET"
+        }
+      ]
     },
     {
       "bot": "ApexTitan",
@@ -343,12 +381,75 @@
       "openTasks": []
     },
     {
-      "bot": "College DropOut",
+      "bot": "College DropOut \u00b7 College Football Savant",
       "id": "04086def-1d67-479c-827c-29a3a7ce9eaf",
       "room": null,
-      "workingOn": [],
-      "routines": [],
-      "openTasks": []
+      "workingOn": [
+        {
+          "task": "Week 11 CFB team watch: sourced injury/role changes (research leads only, PR #5, Linear NFL-74)",
+          "state": "done, reported to Rico",
+          "updatedAt": "Nov 11, 2026 10:17 AM ET"
+        }
+      ],
+      "routines": [
+        {
+          "name": "CFB weekly team watch via main Grok",
+          "schedule": "Mon, Wed, Fri around 10 AM ET",
+          "state": "enabled",
+          "lastRun": "Nov 11, 2026 10:12 AM ET"
+        },
+        {
+          "name": "CFB ongoing daily Linear postgame tracking",
+          "schedule": "Daily around 9 AM ET",
+          "state": "enabled",
+          "lastRun": "Nov 11, 2026 9:19 AM ET"
+        },
+        {
+          "name": "CFB paper projection grading (Nov 5-7)",
+          "schedule": "9 AM ET Nov 6-8 (finished window)",
+          "state": "enabled",
+          "lastRun": "Nov 8, 2026 9:15 AM ET (failed, usage unavailable)"
+        },
+        {
+          "name": "NCAAF daily edge handoff to Ghost6",
+          "schedule": "Daily around 2 PM ET",
+          "state": "paused",
+          "lastRun": "never"
+        },
+        {
+          "name": "NCAAF weekly strengths and mistakes review",
+          "schedule": "Mondays around 11 AM ET",
+          "state": "paused",
+          "lastRun": "never"
+        }
+      ],
+      "openTasks": [
+        {
+          "task": "Nov 5-7 three-day read-error review (Nov 8 run failed; not done)",
+          "state": "pending",
+          "updatedAt": "Nov 8, 2026 9:15 AM ET"
+        },
+        {
+          "task": "GitHub repo portability (PR #1 unmerged, Linear NFL-36)",
+          "state": "in progress",
+          "updatedAt": "Nov 6, 2026 1:37 PM ET"
+        },
+        {
+          "task": "Model defect fixes D01-D13 (Linear NFL-37)",
+          "state": "open",
+          "updatedAt": "Nov 6, 2026"
+        },
+        {
+          "task": "Validation/calibration and market quotes, Pinnacle access (Linear NFL-33, NFL-40)",
+          "state": "open",
+          "updatedAt": "Nov 6, 2026"
+        },
+        {
+          "task": "Model readiness for picks",
+          "state": "not ready; edge handoff paused",
+          "updatedAt": "Nov 11, 2026 9:19 AM ET"
+        }
+      ]
     },
     {
       "bot": "TopShotta",

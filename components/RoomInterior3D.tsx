@@ -6,7 +6,13 @@ import { bots, botsByRoomId, type CampusBot } from "../lib/bots";
 import { makeBoardTexture, type BoardStyle } from "../lib/boardDraw";
 import { boardsForRoom, useCampusStatus, type BotBoard } from "../lib/status";
 import { useGrokTheme } from "../lib/theme";
-import { BotBoardView, ChatButton } from "./ChatAndStatus";
+import { BotBoardView, CampusFeedPanel, ChatButton } from "./ChatAndStatus";
+import { botKeyFromName, makeBotAvatar, type AvatarAnim, type BotKey } from "./botAvatars";
+import {
+  addCashCounter, addCoinStack, addFilmScreen, addFlagBillboard, addFloorAirplane,
+  addJerseyWall, addMiniFootballGame, addPiggyBank, addSpinningGlobe,
+  addToyTrain, addTrophy,
+} from "./roomExtras";
 
 type TeamLike = { id: string; name: string; lead?: { name: string } };
 
@@ -19,11 +25,13 @@ export default function RoomInterior3D(props: {
   onNext: () => void;
   onExit: () => void;
   onFail?: () => void;
+  onReplay?: () => void;
 }) {
   const th = useGrokTheme();
   const host = useRef<HTMLDivElement>(null);
   const file = useCampusStatus();
   const [readBoard, setReadBoard] = useState(false);
+  const [feedPanel, setFeedPanel] = useState(props.team.id === "hq");
   const [ready, setReady] = useState(false);
   const openBoardRef = useRef<() => void>(() => {});
   openBoardRef.current = () => setReadBoard(true);
@@ -32,6 +40,7 @@ export default function RoomInterior3D(props: {
   const boards = boardsForRoom(file, team.id, team.lead?.name);
   const owner: CampusBot | undefined = botsByRoomId[team.id] || bots.find((b) => b.roomId === team.id);
   const einstein = team.id === "hq" ? bots.find((b) => b.name === "Einstein") : undefined;
+  const dropout = team.id === "hq" ? bots.find((b) => b.name === "College DropOut") : undefined;
 
   useEffect(() => {
     const el = host.current;
@@ -67,15 +76,17 @@ export default function RoomInterior3D(props: {
         controls.target.set(0.2, 1.5, -2);
         camera.position.set(0.3, 2.35, 9.0);
       } else if (team.id === "money") {
-        controls.target.set(0, 1.4, -1.2);
-        camera.position.set(1.6, 2.0, 6.2);
+        controls.target.set(0.4, 1.3, -1.0);
+        camera.position.set(2.2, 2.1, 6.6);
       } else if (team.id === "hq") {
-        controls.target.set(0.15, 2.0, -5.8);
-        camera.position.set(0.15, 2.05, -0.4);
+        controls.target.set(0, 1.5, -1.5);
+        camera.position.set(0.4, 2.15, 5.8);
+      } else if (team.id === "nfl" || team.id === "nba") {
+        controls.target.set(0, 1.4, -1.2);
+        camera.position.set(0.6, 2.2, 6.8);
       } else {
-        // Face the back-wall board so its text is readable at the default view.
-        controls.target.set(0, 2.05, -5.8);
-        camera.position.set(0, 2.05, -1.5);
+        controls.target.set(0, 1.5, -1.0);
+        camera.position.set(0, 2.0, 6.2);
       }
       controls.update();
 
@@ -218,6 +229,7 @@ export default function RoomInterior3D(props: {
         <div style={{ pointerEvents: "auto", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
           {owner ? <ChatButton bot={owner} large={!phone} /> : null}
           {einstein ? <ChatButton bot={einstein} /> : null}
+          {dropout ? <ChatButton bot={dropout} /> : null}
         </div>
       </div>
 
@@ -248,6 +260,19 @@ export default function RoomInterior3D(props: {
           </button>
           {!readBoard && (
             <div style={{ color: "#fff", fontSize: phone ? 12 : 13, opacity: 0.85, marginInlineEnd: 8 }}>Tap a board to read it</div>
+          )}
+          {team.id === "hq" && (
+            <button
+              onClick={() => setFeedPanel((v) => !v)}
+              style={{
+                ...navBtn,
+                background: feedPanel ? th.fill.accent : th.fill.secondary,
+                color: feedPanel ? th.text.onColor : th.text.primary,
+                border: "none",
+              }}
+            >
+              {feedPanel ? "Hide feed" : "Campus Feed"}
+            </button>
           )}
           <button
             onClick={() => setReadBoard((v) => !v)}
@@ -282,6 +307,27 @@ export default function RoomInterior3D(props: {
           }}
         >
           {boards.length ? boards.map((b) => <BotBoardView key={b.id || b.bot} board={b} />) : <div style={{ color: "#ddd", padding: 12 }}>No board posted yet.</div>}
+        </div>
+      )}
+      {feedPanel && team.id === "hq" && !readBoard && (
+        <div
+          style={{
+            position: "absolute",
+            top: phone ? 88 : 96,
+            left: phone ? 10 : 18,
+            right: phone ? 10 : "auto",
+            width: phone ? "auto" : 400,
+            bottom: phone ? 70 : 70,
+            zIndex: 3,
+            overflowY: "auto",
+            padding: 8,
+            borderRadius: 14,
+            background: "rgba(20,20,20,0.88)",
+            backdropFilter: "blur(8px)",
+            boxShadow: "0 12px 40px rgba(0,0,0,.45)",
+          }}
+        >
+          <CampusFeedPanel onReplay={props.onReplay} />
         </div>
       )}
     </div>
@@ -326,6 +372,15 @@ function boardMesh(board: BotBoard, style: BoardStyle, w: number, h: number) {
   frame.userData.boardClick = true;
   face.userData.boardClick = true;
   return frame;
+}
+
+function addRoomAvatar(scene: THREE.Scene, ticks: Array<(t: number, dt: number) => void>, key: BotKey, x: number, y: number, z: number, rotY: number, anim: AvatarAnim) {
+  const av = makeBotAvatar(key, { scale: 1.15, showName: true });
+  av.group.position.set(x, y, z);
+  av.group.rotation.y = rotY;
+  scene.add(av.group);
+  ticks.push((t) => av.tick(t, anim));
+  return av;
 }
 
 function destBoardTex() {
@@ -442,17 +497,52 @@ function buildRoom(
   }
 
   placeBoards(scene, boards, style, id);
+
+  if (id === "nfl") {
+    addFilmScreen(scene, 0, 2.15, -5.75, 0, "nfl", ticks, 3.4, 1.7);
+    addJerseyWall(scene, 5.6, 1.6, -1.2, -Math.PI / 2, "nfl");
+    addTrophy(scene, 4.6, 0, 1.4, "nfl");
+    addMiniFootballGame(scene, 0.2, 0, 0.6, ticks);
+    addRoomAvatar(scene, ticks, "blitz", -1.8, 0, 2.4, Math.PI, "watch");
+  }
+  if (id === "nba") {
+    addFilmScreen(scene, 0, 2.15, -5.75, 0, "nba", ticks, 3.4, 1.7);
+    addJerseyWall(scene, 5.6, 1.6, -1.2, -Math.PI / 2, "nba");
+    addTrophy(scene, 4.6, 0, 1.4, "nba");
+    addRoomAvatar(scene, ticks, "betguru", -1.8, 0, 2.4, Math.PI, "watch");
+  }
+  if (id === "hq") {
+    addRoomAvatar(scene, ticks, "ghost6", 0, 0, 2.0, Math.PI, "work");
+    addRoomAvatar(scene, ticks, "einstein", 2.4, 0, 2.2, -0.5, "work");
+    addRoomAvatar(scene, ticks, "dropout", -2.6, 0, 2.3, 0.5, "idle");
+    addRoomAvatar(scene, ticks, "topshotta", 3.6, 0, 3.2, -0.3, "idle");
+  }
+  if (id === "shop") {
+    addRoomAvatar(scene, ticks, "apextitan", 0.4, 0, 1.8, Math.PI, "idle");
+  }
 }
 
 function placeBoards(scene: THREE.Scene, boards: BotBoard[], style: BoardStyle, id: string) {
   if (!boards.length) return;
   if (id === "hq" && boards.length >= 2) {
-    const a = boardMesh(boards[0], style, 2.7, 3.5);
-    a.position.set(-1.7, 2.05, -5.8);
+    const a = boardMesh(boards[0], style, 2.2, 3.2);
+    a.position.set(-3.4, 2.0, -5.8);
     scene.add(a);
-    const b = boardMesh(boards[1], style, 2.5, 3.5);
-    b.position.set(2.0, 2.05, -5.8);
+    const b = boardMesh(boards[1], style, 2.2, 3.2);
+    b.position.set(-0.9, 2.0, -5.8);
     scene.add(b);
+    if (boards[2]) {
+      const c = boardMesh(boards[2], style, 2.2, 3.2);
+      c.position.set(1.8, 2.0, -5.8);
+      scene.add(c);
+    }
+    return;
+  }
+  if (id === "nfl" || id === "nba") {
+    const a = boardMesh(boards[0], style, 2.4, 3.2);
+    a.rotation.y = Math.PI / 2;
+    a.position.set(-5.5, 2.0, 0.4);
+    scene.add(a);
     return;
   }
   if (id === "money") {
@@ -463,9 +553,9 @@ function placeBoards(scene: THREE.Scene, boards: BotBoard[], style: BoardStyle, 
     return;
   }
   if (id === "travel") {
-    const a = boardMesh(boards[0], "whiteboard", 2.3, 3.0);
-    a.position.set(-3.5, 1.75, 1.8);
-    a.rotation.y = 0.28;
+    const a = boardMesh(boards[0], "whiteboard", 2.2, 2.9);
+    a.position.set(-5.4, 1.7, 3.4);
+    a.rotation.y = 0.45;
     scene.add(a);
     return;
   }
@@ -531,10 +621,19 @@ function buildMoney(
   addMoneyBag(scene, -3.6, 0, 1.8);
   addMoneyBag(scene, -3.0, 0, 2.4);
   addMoneyBag(scene, 3.6, 0, 2.0);
+  addMoneyBag(scene, 4.2, 0, 1.2);
+  addMoneyBag(scene, -4.4, 0, 0.6);
   addGoldBars(scene, -4.2, 0.06, -2.2);
+  addCoinStack(scene, 0.9, 1.16, 1.85, 8);
+  addCoinStack(scene, 1.15, 1.16, 1.7, 5);
+  addCoinStack(scene, 3.1, 0, 1.4, 7);
+  addCoinStack(scene, 3.35, 0, 1.2, 4);
+  addCashCounter(scene, 1.6, 1.16, 1.35);
+  addPiggyBank(scene, 3.4, 0, 0.2, 1.4);
 
   placeBoards(scene, boards, style, "money");
   addBills(scene, phone, ticks);
+  addRoomAvatar(scene, ticks, "money", 0.2, 0, 3.0, Math.PI + 0.4, "idle");
 }
 
 function makeVaultDoor() {
@@ -735,32 +834,20 @@ function buildTravel(
   sunLight.position.copy(sun.position);
   scene.add(sunLight);
 
-  // palms in the default camera frustum (mid-foreground, not only at the frame edges)
+  // palms kept to the far sides so they don't block the board or flag billboard
   const palmSpots: Array<[number, number, number]> = [
-    [-3.15, 0, 4.6],
-    [-2.25, 0, 2.7],
-    [3.05, 0, 4.8],
-    [2.35, 0, 2.6],
-    [-5.4, 0, 1.2],
-    [5.2, 0, 1.4],
+    [-6.4, 0, 5.4],
+    [-7.0, 0, 3.2],
+    [6.5, 0, 5.2],
+    [7.1, 0, 3.0],
   ];
-  (phone ? palmSpots.slice(0, 4) : palmSpots).forEach((p) => scene.add(makePalm(p[0], p[1], p[2])));
+  palmSpots.forEach((p) => scene.add(makePalm(p[0], p[1], p[2])));
 
-  // destinations chalkboard + desk globe as beach-side props
-  const chalk = destBoardTex();
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.35), new THREE.MeshBasicMaterial({ map: chalk }));
-  board.position.set(3.4, 1.15, 1.6);
-  board.rotation.y = -0.5;
-  scene.add(board);
-  addBox(scene, mat("#5a3a22"), 0.08, 1.2, 0.08, 3.0, 0.6, 1.85);
-  addBox(scene, mat("#5a3a22"), 0.08, 1.2, 0.08, 3.85, 0.6, 1.35);
-
-  const globe = makeDeskGlobe();
-  globe.position.set(2.3, 0.55, 2.4);
-  scene.add(globe);
-  ticks.push((t) => {
-    globe.userData.spin.rotation.y = t * 0.6;
-  });
+  addFlagBillboard(scene, 0.15, 1.55, -3.6, 0);
+  addSpinningGlobe(scene, 2.6, 0, 2.2, ticks, 0.42);
+  addToyTrain(scene, -1.1, 0, 3.2, ticks);
+  addFloorAirplane(scene, 1.3, 0, 3.6, ticks);
+  addRoomAvatar(scene, ticks, "travel", 0.5, 0, 5.0, Math.PI + 0.2, "idle");
 
   placeBoards(scene, boards, style, "travel");
 

@@ -1,5 +1,5 @@
 "use client";
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { bots, botsByRoomId, chatHref, type CampusBot } from "../lib/bots";
 import {
   boardsForRoom,
@@ -15,6 +15,7 @@ import {
   type BotBoard,
   type StatusItem,
 } from "../lib/status";
+import { useCampusFeed } from "../lib/feed";
 import { useGrokTheme } from "../lib/theme";
 
 export { chatHref, usePostedCount };
@@ -198,4 +199,129 @@ export function roomIdForBot(botName: string): string | null {
   const bot = bots.find((b) => b.name === botName || botName.startsWith(b.name) || b.id === botName);
   if (!bot) return null;
   return bot.roomId || "hq";
+}
+
+export function CampusFeedPanel(props: { onReplay?: () => void; compact?: boolean }) {
+  const th = useGrokTheme();
+  const file = useCampusFeed();
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: 0.4, color: th.text.tertiary }}>CAMPUS FEED</div>
+        <button
+          type="button"
+          onClick={() => props.onReplay?.()}
+          style={{
+            marginInlineStart: "auto",
+            font: "inherit",
+            fontSize: 12.5,
+            fontWeight: 700,
+            padding: "5px 12px",
+            borderRadius: 999,
+            border: "none",
+            background: th.fill.accent,
+            color: th.text.onColor,
+            cursor: "pointer",
+          }}
+        >
+          Replay
+        </button>
+      </div>
+      {file.entries.length === 0 ? (
+        <div style={{ fontSize: 13, color: th.text.tertiary, padding: "8px 0" }}>No campus messages posted yet.</div>
+      ) : (
+        file.entries.map((e, i) => (
+          <div
+            key={i}
+            style={{
+              padding: props.compact ? "7px 0" : "9px 0",
+              borderTop: `1px solid ${th.border.weak}`,
+            }}
+          >
+            <div style={{ fontSize: 11.5, color: th.text.tertiary }}>
+              <b style={{ color: th.text.accent }}>{e.from}</b>
+              {" → "}
+              {e.to}
+              {" · "}
+              {e.kind}
+              {" · "}
+              {e.at}
+            </div>
+            <div style={{ fontSize: props.compact ? 13 : 14, lineHeight: "19px", marginTop: 2 }}>{e.text}</div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+export function CampusFeedTicker(props: {
+  open: boolean;
+  collapsed: boolean;
+  onToggleOpen: () => void;
+  onToggleCollapsed: () => void;
+  onReplay: () => void;
+  phone?: boolean;
+}) {
+  const th = useGrokTheme();
+  const file = useCampusFeed();
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (!file.entries.length) return;
+    const id = window.setInterval(() => setI((n) => n + 1), 4500);
+    return () => window.clearInterval(id);
+  }, [file.entries.length]);
+  const entry = file.entries.length ? file.entries[i % file.entries.length] : null;
+  const pill: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    background: `color-mix(in srgb, ${th.bg.elevated} 92%, transparent)`,
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    border: `1px solid ${th.border.default}`,
+    boxShadow: "0 8px 28px rgba(0,0,0,.28)",
+    borderRadius: 22,
+    padding: props.collapsed ? "6px 8px 6px 14px" : "6px 6px 6px 14px",
+    pointerEvents: "auto",
+    width: props.collapsed ? "auto" : "min(740px, 100%)",
+    maxWidth: "min(740px, 100%)",
+    boxSizing: "border-box",
+  };
+  const btn: CSSProperties = {
+    font: "inherit",
+    fontSize: 13,
+    fontWeight: 600,
+    padding: "6px 12px",
+    borderRadius: 999,
+    border: `1px solid ${th.border.default}`,
+    background: th.bg.subtle,
+    color: th.text.primary,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+  return (
+    <div style={pill}>
+      <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, color: th.text.accent, flex: "none" }}>
+        Campus Feed
+      </span>
+      {!props.collapsed && entry && (
+        <div style={{ minWidth: 0, flex: "1 1 0", fontSize: props.phone ? 13 : 14, lineHeight: "18px", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } as CSSProperties}>
+          <b>{entry.from}</b>
+          <span style={{ color: th.text.tertiary }}> → {entry.to} · {entry.at}</span>
+          {" · "}
+          {entry.text}
+        </div>
+      )}
+      <button type="button" onClick={props.onReplay} style={{ ...btn, background: th.fill.accent, color: th.text.onColor, border: "none" }}>
+        Replay
+      </button>
+      <button type="button" onClick={props.onToggleOpen} style={{ ...btn, background: props.open ? th.fill.accentSubtle : th.bg.subtle }}>
+        {props.open ? "Hide list" : "Full feed"}
+      </button>
+      <button type="button" onClick={props.onToggleCollapsed} aria-label={props.collapsed ? "Expand campus feed" : "Collapse campus feed"} style={{ ...btn, padding: "6px 10px" }}>
+        {props.collapsed ? "▸" : "▾"}
+      </button>
+    </div>
+  );
 }

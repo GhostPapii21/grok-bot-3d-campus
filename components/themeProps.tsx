@@ -6,6 +6,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import * as THREE from "three";
+import { addFlagBillboard, addPiggyBank, addTrophy, addJerseyWall } from "./roomExtras";
 
 export type Spin = { obj: THREE.Object3D; speed: number };
 
@@ -705,6 +706,10 @@ export function dressThemedRoom(
     G.add(post);
     const crestIn = emblemPlane(crest, 0.55, 0.55, 0, 0.95, backZ + 0.03);
     G.add(crestIn);
+    const nbaTrop = addTrophy(G, 1.25, 0, frontZ + 0.85, "nba");
+    pick(nbaTrop);
+    const nbaJ = addJerseyWall(G, 0.2, 1.05, frontZ + 0.06, 0, "nba");
+    nbaJ.scale.setScalar(0.55);
   }
 
   if (id === "nfl") {
@@ -736,6 +741,11 @@ export function dressThemedRoom(
     G.add(mesh(boxGeo, metal, 0.06, 0.55, 0.06, 1.2, 0.27, frontZ + 0.5));
     G.add(emblemPlane(shield, 0.46, 0.58, 0, 0.95, backZ + 0.03));
   }
+
+    const nflTrop = addTrophy(G, -1.25, 0, frontZ + 0.85, "nfl");
+    pick(nflTrop);
+    const nflJ = addJerseyWall(G, 0.2, 1.05, frontZ + 0.06, 0, "nfl");
+    nflJ.scale.setScalar(0.55);
 
   if (id === "travel") {
     const gTex = globeTex();
@@ -772,6 +782,9 @@ export function dressThemedRoom(
     mini.position.set(-0.42, 0.52, -g.d * 0.12);
     G.add(mini);
     spins.push({ obj: mini, speed: 0.9 });
+    const flags = addFlagBillboard(G, 0, 0.85, frontZ + 0.08, 0);
+    flags.scale.setScalar(0.42);
+    pick(flags);
   }
 
   if (id === "shop") {
@@ -832,6 +845,8 @@ export function dressThemedRoom(
     vault.add(wheel);
     pick(vault);
     G.add(vault);
+    const pig = addPiggyBank(G, 0.95, 0, frontZ + 1.05, 0.7);
+    pick(pig);
     // cash stacks, gold bars, money bags in front of the building
     const stack = (x: number, z: number) => {
       G.add(mesh(boxGeo, green, 0.22, 0.1, 0.1, x, 0.08, z));

@@ -157,12 +157,14 @@ export function boardForBot(file: StatusFile, nameOrId: string): BotBoard | unde
 /** Boards to hang in a room interior. HQ shows Ghost6 (owner) and Einstein (HQ-listed, posted). */
 export function boardsForRoom(file: StatusFile, roomId: string, roomOwner?: string): BotBoard[] {
   if (roomId === "hq") {
-    const out: BotBoard[] = []
-    const g6 = file.bots.find((b) => b.bot === "Ghost6" || b.room === "hq")
-    const ein = file.bots.find((b) => b.bot === "Einstein")
-    if (g6) out.push(g6)
-    if (ein) out.push(ein)
-    return out
+    const order = ["Ghost6", "Einstein", "College DropOut"]
+    const rank = (name: string) => {
+      const i = order.findIndex((n) => name === n || name.startsWith(n))
+      return i === -1 ? 99 : i
+    }
+    return file.bots
+      .filter((b) => (b.room === "hq" || b.room === null) && hasPostedBoard(b))
+      .sort((a, b) => rank(a.bot) - rank(b.bot))
   }
   const byRoom = file.bots.find((b) => b.room === roomId)
   if (byRoom) return [byRoom]

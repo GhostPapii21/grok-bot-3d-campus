@@ -6,6 +6,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { PALETTE } from "../lib/theme";
 import { roomGeo, agentsOf, W3, ctrlFor, qpt, PLAZA, TREES, campusGrow } from "./ControlCenter";
+import { makeBotAvatar, type BotKey } from "./botAvatars";
+import { botHomes, playbackJobs, pointAlong, lengthOf, type BotHome } from "./campusBots";
 import { dressThemedRoom } from "./themeProps";
 
 const P = PALETTE;
@@ -50,7 +52,7 @@ export default function Campus3D(props: any) {
       if (!ok) throw new Error("no webgl");
       renderer = new THREE.WebGLRenderer({ antialias: !mobile || window.devicePixelRatio < 2, powerPreference: "high-performance" });
     } catch (e) { pr.current.onFail && pr.current.onFail(); return; }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.6 : 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 1.75));
     renderer.shadowMap.enabled = !mobile;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -213,10 +215,7 @@ export default function Campus3D(props: any) {
         const c = ctrlFor(p); const pts: { x: number; z: number }[] = [];
         for (let i = 0; i <= 24; i++) pts.push(W3(qpt(PLAZA, c, p, i / 24)));
         roadGroup.add(ribbon(pts, 0.5, 0.004, roadMat));
-        const per = 24 + ti * 2;
-        const ag = makeAgent({ ci: (ti + 1) % 6, state: "walk", lead: false, alert: false }, ti * 3);
-        ag.g.scale.setScalar(0.9);
-        scene.add(ag.g); walkers.push({ ...ag, tm, p, c, per, i: ti });
+        // Named campus bots walk the roads for the real campus feed; no decorative stand-ins.
       });
       T.forEach((tm: any) => {
         const p = p0.pos[tm.id]; if (!p) return;
@@ -317,17 +316,38 @@ export default function Campus3D(props: any) {
         // dim cover for the team filter
         const cover = new THREE.Mesh(geo.box, own(new THREE.MeshBasicMaterial({ color: P.page, transparent: true, opacity: 0, depthWrite: false })));
         cover.scale.set(g.w + 0.3, 1.9, g.d + 0.3); cover.position.y = 0.9; cover.visible = false; G.add(cover);
-        // agents
-        const ags = agentsOf(tm, idx, open).map((a: any, k: number) => {
-          const A = makeAgent(a, idx * 7 + k); A.g.position.set(a.x, a.state === "sleep" ? 0.2 : 0.24, a.z - 0.1); A.g.scale.setScalar(1.12); G.add(A.g);
-          G.add(mesh(geo.cyl, mats.dark, 0.13, 0.14, 0.13, a.x, 0.17, a.z - 0.1));
-          A.g.traverse((o) => { if ((o as any).isMesh) { o.userData.pick = { team: tm.id, what: "person", member: a.i }; pickables.push(o); } });
-          return A;
-        });
+        // Owner bots live as named campus avatars (see botRoot), not generic desk blobs.
+        const ags: any[] = [];
         rooms.push({ tm, G, g, walls, onWall, edge, freshRing, lampMat, glowMat, lamp, glow, cover, ags, screens, idx, fz, spins, anchor: new THREE.Vector3(C.x, H + 0.62, C.z - g.d / 2) });
       });
     };
     build();
+
+    const botRoot = new THREE.Group();
+    scene.add(botRoot);
+    type CampusActor = { av: ReturnType<typeof makeBotAvatar>; home: BotHome; busy: boolean };
+    const actors: CampusActor[] = [];
+    const spawnActors = () => {
+      botRoot.children.slice().forEach((c) => { botRoot.remove(c); });
+      actors.length = 0;
+      botHomes().forEach((home) => {
+        const av = makeBotAvatar(home.key, { scale: 1.05, showName: true });
+        av.group.position.set(home.home.x, 0, home.home.z);
+        botRoot.add(av.group);
+        actors.push({ av, home, busy: false });
+      });
+    };
+    spawnActors();
+
+    type PlayState = { jobs: ReturnType<typeof playbackJobs>; i: number; dist: number; holding: number; started: number };
+    let play: PlayState | null = null;
+    let lastReplayN = -1;
+    let autoPlayed = false;
+    const startReplay = (entries: any[]) => {
+      actors.forEach((a) => { a.busy = false; a.av.setBubble(null); a.av.group.position.set(a.home.home.x, 0, a.home.home.z); });
+      const jobs = playbackJobs(entries || [], actors.map((a) => a.home));
+      play = { jobs, i: 0, dist: 0, holding: -1, started: 0 };
+    };
 
     // ---- camera + controls ----
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -537,18 +557,62 @@ export default function Campus3D(props: any) {
           if (A.alert) { A.alert.position.y = A.topY + 0.3 + Math.abs(Math.sin(t * 3)) * 0.06; }
         });
       });
-      // walkers along the roads
-      walkers.forEach((w: any) => {
-        const f = ((t + w.i * 5) % w.per) / w.per; let k = -1;
-        if (f > 0.3 && f <= 0.48) k = 0.82 - ease((f - 0.3) / 0.18) * 0.62; else if (f > 0.48 && f <= 0.6) k = 0.2; else if (f > 0.6 && f <= 0.78) k = 0.2 + ease((f - 0.6) / 0.18) * 0.62;
-        w.g.visible = k >= 0 && !(p.dim && p.dim !== w.tm.id);
-        if (k < 0) return;
-        const q = W3(qpt(PLAZA, w.c, w.p, k)), q2 = W3(qpt(PLAZA, w.c, w.p, Math.min(1, k + 0.01)));
-        const dir = f <= 0.48 ? -1 : 1; const moving = !(f > 0.48 && f <= 0.6);
-        w.g.position.set(q.x, (moving ? Math.abs(Math.sin(t * 10 + w.i)) * 0.04 : 0), q.z);
-        w.g.rotation.y = Math.atan2((q2.x - q.x) * dir, (q2.z - q.z) * dir);
-        w.feet.forEach((ft: THREE.Mesh, j: number) => { ft.position.z = moving ? Math.sin(t * 12 + j * Math.PI) * 0.05 : 0; });
-        const bl = ((t + w.seed * 0.7) % 4.2) < 0.12; w.eL.scale.y = w.eR.scale.y = bl ? 0.12 : 1;
+      // campus feed replay + idle wander
+      const replayN = p.replayN || 0;
+      if (replayN !== lastReplayN && replayN > 0) { lastReplayN = replayN; startReplay(p.campusFeed || []); }
+      if (!autoPlayed && t > 1.6 && (p.campusFeed || []).length) { autoPlayed = true; if (!play) startReplay(p.campusFeed); }
+      if (play) {
+        const job = play.jobs[play.i];
+        if (!job) { play = null; actors.forEach((a) => { a.busy = false; a.av.setBubble(null); }); }
+        else {
+          const actor = actors.find((a) => a.av.key === job.key);
+          if (actor) {
+            actor.busy = true;
+            const total = Math.max(0.2, lengthOf(job.pts));
+            const speed = 2.3;
+            if (play.holding < 0) {
+              play.dist += 1 / 60 * speed; // approx; use clock delta-ish
+              if (play.dist >= total) {
+                const end = job.pts[job.pts.length - 1];
+                actor.av.group.position.set(end.x, 0, end.z);
+                actor.av.tick(t, "idle");
+                actor.av.setBubble(job.text);
+                play.holding = job.hold;
+              } else {
+                const pt = pointAlong(job.pts, play.dist);
+                actor.av.group.position.set(pt.x, 0, pt.z);
+                actor.av.group.rotation.y = pt.heading;
+                actor.av.tick(t, "walk", true);
+                actor.av.setBubble(null);
+              }
+            } else {
+              play.holding -= 1 / 60;
+              const end = job.pts[job.pts.length - 1];
+              actor.av.group.position.set(end.x, 0, end.z);
+              actor.av.tick(t, "idle");
+              if (play.holding <= 0) {
+                actor.av.setBubble(null);
+                actor.busy = false;
+                play.i += 1;
+                play.dist = 0;
+                play.holding = -1;
+              }
+            }
+          } else {
+            play.i += 1;
+          }
+        }
+      }
+      actors.forEach((a, i) => {
+        if (a.busy) return;
+        const seed = i * 1.9;
+        const wx = a.home.home.x + Math.sin(t * 0.28 + seed) * 0.55;
+        const wz = a.home.home.z + Math.cos(t * 0.22 + seed) * 0.45;
+        const dx = wx - a.av.group.position.x, dz = wz - a.av.group.position.z;
+        a.av.group.position.x += dx * 0.04;
+        a.av.group.position.z += dz * 0.04;
+        if (Math.abs(dx) + Math.abs(dz) > 0.02) a.av.group.rotation.y = Math.atan2(dx, dz);
+        a.av.tick(t, "idle");
       });
       renderer.render(scene, camera);
       // labels follow their rooms
@@ -594,6 +658,7 @@ export default function Campus3D(props: any) {
     return () => {
       cancelAnimationFrame(raf); ro.disconnect(); controls.dispose();
       roomRoot.children.slice().forEach((c) => disposeTree(c));
+      botRoot.children.slice().forEach((c) => disposeTree(c));
       renderer.dispose(); if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       api.current = null;
     };
