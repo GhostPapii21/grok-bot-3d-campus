@@ -149,8 +149,9 @@ export function addFlagBillboard(parent: THREE.Object3D, x: number, y: number, z
   const g = new THREE.Group();
   g.position.set(x, y, z);
   g.rotation.y = rotY;
-  add(g, box, M("#5a3a22"), 3.3, 1.85, 0.08, 0, 0, -0.03);
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(3.15, 1.7), new THREE.MeshBasicMaterial({ map: tex }));
+  add(g, box, M("#5a3a22"), 3.3, 1.85, 0.08, 0, 0, -0.08);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(3.15, 1.7), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+  face.position.z = 0.06;
   g.add(face);
   parent.add(g);
   return g;
@@ -215,8 +216,9 @@ export function addFloorAirplane(parent: THREE.Object3D, cx: number, cy: number,
   parent.add(g);
   ticks.push((t) => {
     const a = t * 0.85 + 1.2;
-    g.position.set(cx + Math.cos(a) * 1.9, cy + 0.1, cz + Math.sin(a) * 1.9);
+    g.position.set(cx + Math.cos(a) * 1.9, cy + 0.16, cz + Math.sin(a) * 1.9);
     g.rotation.y = -a + Math.PI / 2;
+    g.scale.setScalar(1.85);
   });
   return g;
 }

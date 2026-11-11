@@ -629,7 +629,7 @@ function buildMoney(
   addCoinStack(scene, 3.1, 0, 1.4, 7);
   addCoinStack(scene, 3.35, 0, 1.2, 4);
   addCashCounter(scene, 1.6, 1.16, 1.35);
-  addPiggyBank(scene, 3.4, 0, 0.2, 1.4);
+  addPiggyBank(scene, -2.4, 0, 3.15, 1.45);
 
   placeBoards(scene, boards, style, "money");
   addBills(scene, phone, ticks);
@@ -843,7 +843,7 @@ function buildTravel(
   ];
   palmSpots.forEach((p) => scene.add(makePalm(p[0], p[1], p[2])));
 
-  addFlagBillboard(scene, 0.15, 1.55, -3.6, 0);
+  addFlagBillboard(scene, 0.1, 1.7, -2.15, 0);
   addSpinningGlobe(scene, 2.6, 0, 2.2, ticks, 0.42);
   addToyTrain(scene, -1.1, 0, 3.2, ticks);
   addFloorAirplane(scene, 1.3, 0, 3.6, ticks);
