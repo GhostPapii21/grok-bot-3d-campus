@@ -3,6 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import { useGrokTheme } from "../lib/theme";
 import { TZ } from "../lib/tz";
 import Campus3D from "./Campus3DLazy";
+import BotChat from "./BotChat";
+import { roomDecor } from "./RoomDecor";
+import { themeOf, type RoomTheme } from "../lib/themes";
+import { activeTalks, validChat, walkPhase, type ChatMsg } from "../lib/chat";
 
 // ===== DATA (a refresh routine edits only these constants) =====
 // UPDATED: string shown in the HUD.
@@ -25,7 +29,10 @@ import Campus3D from "./Campus3DLazy";
 //   }],                                                // [] = checked, no routines
 //   unscanned?: [owner names]                          // bots whose older chat history was not fully checked
 //   botUsage?: [{ owner, pct }]                        // share of this week's usage per bot (from USAGE.topBots)
+//   theme?: "money" | "travel" | "nfl" | "nba" | "none" // room decor; when absent it is inferred from the team's id and name
 // }
+// CHAT?: [{ id (stable, unique), at: ISO time or epoch ms, team: speaker's team id, from: bot name ("You" for the owner),
+//           to?: bot name, toTeam?: other team id, text }]   // bot-to-bot messages, oldest first; the bots act them out
 type Usage = { weeklyPct: number; reset: string; onDemandPct: number; period: string; byTeam: { label: string; pct: number }[]; topBots: { label: string; pct: number }[] };
 // live data: filled from the server (Blob) on every render of the wrapper
 let UPDATED = "";
@@ -39,14 +46,30 @@ type Activity = { time: string; text: string };
 type Task = { text: string; state: "todo" | "doing" | "done"; owner?: string };
 type Team = {
   id: string; name: string; status: TeamStatus; lead: Member; members: Member[];
-  work: string; next?: string; lines: string[]; pending: Pending[]; usage?: string; goal?: Goal;
+  work: string; next?: string; lines: string[]; pending: Pending[]; usage?: string; goal?: Goal; theme?: string;
   activity: Activity[]; tasks: Task[];
   routines?: Routine[]; unscanned?: string[]; botUsage?: { owner: string; pct: number }[];
 };
 type Routine = { id: string; owner: string; name: string; schedule: string; state: "on" | "paused" | "unknown"; lastRun?: string; lastResult?: "ok" | "fail"; next?: string; perWeek?: number; note?: string };
 
 let TEAMS: Team[] = [];
-export type DataShape = { UPDATED: string; USAGE: Usage; TEAMS: Team[] };
+let CHAT: ChatMsg[] = [];   // bot-to-bot messages (optional in the data); the scene acts them out and the chat window lists them
+let CHAT_PLAY: ChatMsg[] = [];   // the same messages, timed for the scene
+// In the real app messages arrive in batches with each data refresh, after they were said. So the scene replays the new
+// ones one after another from the moment they arrive; the chat window keeps the real times. The demo plays them as timed.
+const chatSeen = new Map<string, number>(); let chatFirst = true;
+function chatPlayback(chat: ChatMsg[], demo: boolean): ChatMsg[] {
+  if (demo) return chat;
+  const now = Date.now(); const fresh = chat.filter((m) => !chatSeen.has(m.id));
+  const play = chatFirst ? fresh.slice(-2) : fresh.slice(-12);            // on first load, only the last exchange
+  fresh.forEach((m) => { if (!play.includes(m)) chatSeen.set(m.id, 0); });
+  let at = Math.max(now + 600, ...Array.from(chatSeen.values()).map((v) => v + 7000));
+  play.forEach((m) => { chatSeen.set(m.id, at); at += 7000; });
+  if (chat.length) chatFirst = false;
+  if (chatSeen.size > 600) Array.from(chatSeen.keys()).slice(0, 200).forEach((k) => chatSeen.delete(k));
+  return chat.map((m) => ({ ...m, at: chatSeen.get(m.id) || 0 }));
+}
+export type DataShape = { UPDATED: string; USAGE: Usage; TEAMS: Team[]; CHAT?: ChatMsg[] };
 // ===== END DATA =====
 
 const STATUS_LABEL: Record<TeamStatus, string> = { active: "Active", partial: "Partly active", hold: "Waiting for you", frozen: "Frozen" };
@@ -121,9 +144,8 @@ function initials(name: string): string {
   return parts[0][0] + parts[1][0];
 }
 function timeKey(s: string): number {
-  const m = s.match(/(\d+)\.(\d+)(?:\s+(\d+):(\d+))?/);
-  if (!m) return 0;
-  return Number(m[2]) * 1e6 + Number(m[1]) * 1e4 + Number(m[3] || 0) * 100 + Number(m[4] || 0);
+  // feed times are "D.M HH:MM" (no year) or ISO; sort by the real moment so December items stay ahead of January ones
+  return sinceAt(s) ?? 0;
 }
 function qpt(p0: { x: number; y: number }, c: { x: number; y: number }, p1: { x: number; y: number }, k: number) {
   const a = (1 - k) * (1 - k), b = 2 * (1 - k) * k, d = k * k;
@@ -166,11 +188,33 @@ function shortWhen(ms: number, now: number): string {
   if (ms - now < 864e5 && ms > now) return `${p.hh}:${p.mm}`;
   return `${p.d}.${p.m}`;
 }
+// UTC offset (ms) of the configured zone TZ at moment `ms`
+function tzOffsetMs(ms: number): number {
+  try {
+    const f = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" } as any).formatToParts(new Date(ms));
+    const g = (k: string) => Number((f.find((x) => x.type === k) || { value: "0" }).value);
+    return Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"), g("second")) - Math.floor(ms / 1000) * 1000;
+  } catch (e) { return -new Date(ms).getTimezoneOffset() * 60000; }
+}
+// wall-clock time in TZ -> epoch ms (two passes so a DST change between guess and answer is handled)
+function zonedToMs(y: number, mo: number, d: number, hh: number, mm: number): number {
+  const wall = Date.UTC(y, mo - 1, d, hh, mm);
+  let t = wall - tzOffsetMs(wall);
+  t = wall - tzOffsetMs(t);
+  return t;
+}
+// "D.M HH:MM" carries no year: take the most recent such moment that is not more than a day in the future,
+// so "30.12 22:00" read on 2 January is last December, not next December. The time is read in TZ, not the viewer's zone.
 function sinceAt(s: string): number | null {
   if (/^\d{4}-\d{2}-\d{2}T/.test(s)) { const v = Date.parse(s); return isNaN(v) ? null : v; }
   const m = s.match(/(\d+)\.(\d+)(?:\s+(\d+):(\d+))?/);
   if (!m) return null;
-  return new Date(2026, Number(m[2]) - 1, Number(m[1]), Number(m[3] || 0), Number(m[4] || 0)).getTime();
+  const d = Number(m[1]), mo = Number(m[2]), hh = Number(m[3] || 0), mm = Number(m[4] || 0);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const now = Date.now();
+  const y = Number(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, year: "numeric" }).format(new Date(now)));
+  const t = zonedToMs(y, mo, d, hh, mm);
+  return t > now + 864e5 ? zonedToMs(y - 1, mo, d, hh, mm) : t;
 }
 function teamAlerts(team: Team, now: number): string[] {
   const out: string[] = [];
@@ -2248,7 +2292,7 @@ const IN_WALLS: { k: InWall; icon: string; label: string }[] = [
 ];
 const IN_ORDER: InWall[] = [0, 1, 2, 3, 4];
 const inStep = (w: InWall, d: number): InWall => { const p = IN_ORDER.indexOf(w); return IN_ORDER[(p + d + 5 * 4) % 5]; };
-function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h: number }; phone: boolean; wall: InWall; focus: boolean; member: number | null;
+function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h: number }; chat?: ChatMsg[]; phone: boolean; wall: InWall; focus: boolean; member: number | null;
   decisions: Record<string, Decision>; fresh: Record<string, boolean>; prevName: string; nextName: string;
   onWall: (k: InWall) => void; onFocus: (f: boolean) => void; onMember: (i: number | null) => void; onPrev: () => void; onNext: () => void; onExit: () => void;
   onDecide: (team: Team, item: Pending, kind: Decision["kind"], msg: string) => void; onSend: (msg: string) => void; onSendNow: (msg: string) => void }) {
@@ -2586,7 +2630,7 @@ function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h:
   // ---- routines board on a stand ----
   const st = portrait ? { x: 0, z: G.D * 0.45, w: 600, h: 150, rot: 0, lift: 4 } : { x: G.W * 0.35, z: G.D * 0.06, w: 340, h: 230, rot: -14, lift: 16 };
   const rtRows = rts.slice(0, portrait ? 2 : 5);
-  const fmtNext = (r: Routine) => { const n = nextAt(r); if (!n) return r.state === "paused" ? "Paused" : "—"; const d = new Date(n); return `${d.getDate()}.${d.getMonth() + 1}`; };
+  const fmtNext = (r: Routine) => { const n = nextAt(r); if (!n) return r.state === "paused" ? "Paused" : "—"; const p = ilParts(n); return `${p.d}.${p.m}`; };
   const stand = (
     <div key="stand" style={{ ...S3, transform: at(st.x, 0, st.z) + ` rotateY(${st.rot}deg)` }}>
       {block("p1", -st.w * 0.36, 0, 0, 12, st.lift + 4, 12, { top: "#3a3a3c", front: "#3a3a3c", side: "#2c2c2e" })}
@@ -2612,12 +2656,38 @@ function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h:
 
   // ---- the team at their desks, in front of the lead ----
   const mem = team.members;
+  // bots acting out chat messages: the speaker leaves the desk, walks to the listener, says it, and walks back
+  const talks = fz ? [] : activeTalks(props.chat, Date.now());
+  const myTalks = talks.filter((x) => x.m.team === team.id);
+  const walkTo = (name: string, home: { x: number; y: number; z: number }, homeOf: (n: string) => { x: number; y: number; z: number } | null) => {
+    const tk = myTalks.find((x) => x.m.from === name);
+    if (!tk) return { ...home, tk: null as null | typeof talks[number], w: 0 };
+    let target: { x: number; y: number; z: number } | null;
+    if (tk.m.toTeam && tk.m.toTeam !== team.id) target = { x: G.W * 0.3, y: 0, z: D2 - 50 };                 // off to another room: head for the door
+    else target = homeOf(tk.m.to || team.lead.name);
+    if (!target || (target.x === home.x && target.z === home.z)) return { ...home, tk, w: 0 };
+    // stand on the floor in front of the listener's desk, a little to the side, so both stay visible
+    const toLead = target.y === -ldH + 4;
+    const spot = target.y === 0 ? target : { x: target.x + (home.x <= target.x ? -1 : 1) * (toLead ? 150 : 120), y: 0, z: target.z + (toLead ? ldD + 130 : mdD + 110) };
+    const w = walkPhase(tk.k); const hop = w > 0.001 && w < 0.999 ? Math.abs(Math.sin(t * 11)) * 14 : 0;
+    return { x: home.x + (spot.x - home.x) * w, y: home.y * (1 - w) - hop, z: home.z + (spot.z - home.z) * w, tk, w };
+  };
+  const speech = (k: string, x: number, y: number, z: number, m: ChatMsg, kk: number) => billboard(k, x, y, z, 300, 96, (
+    <div style={{ position: "absolute", left: "50%", bottom: 0, transform: "translateX(-50%)", width: "max-content", maxWidth: 290, padding: "8px 13px", borderRadius: 16, borderEndStartRadius: 4, background: "#ffffff", color: "#111111", fontSize: 16, fontWeight: 600, lineHeight: "20px", boxShadow: "0 8px 22px rgba(0,0,0,.5)", opacity: Math.min(1, kk / 0.08, (1 - kk) / 0.08), display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" } as any}>
+      {m.to ? <b style={{ color: "#6b6b70" }}>→ {m.to}: </b> : null}{m.text}
+    </div>
+  ));
   const spots = mem.map((_, i) => {
     if (!portrait) { const span = G.W * 0.96; return { x: -span / 2 + (i + 0.5) * (span / Math.max(1, mem.length)), z: G.D * 0.32 }; }
     const r = Math.floor(i / 2), j = i % 2, cnt = Math.min(2, mem.length - r * 2);
     return { x: cnt === 1 ? 0 : (j === 0 ? 1 : -1) * G.W * 0.24, z: G.D * 0.0 + r * G.D * 0.18 };
   });
   const mdW = portrait ? 230 : Math.min(230, (G.W * 0.96) / Math.max(1, mem.length) - 34), mdH = 74, mdD = 84;
+  const homeOf = (n: string): { x: number; y: number; z: number } | null => {
+    if (n === team.lead.name) return { x: 0, y: -ldH + 4, z: zl - ldD * 0.68 };
+    const i = mem.findIndex((m) => m.name === n); if (i < 0) return null;
+    return { x: spots[i].x, y: -mdH + 6, z: spots[i].z - mdD * 0.62 };
+  };
   const desks = mem.map((m, i) => {
     const s = spots[i];
     const ci = (idx + i + 1) % 6;
@@ -2628,7 +2698,10 @@ function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h:
         {block("md" + i, s.x, 0, s.z, mdW, mdH, mdD, wood,
           <div onClick={() => { if (!dragged.current) props.onMember(on ? null : i); }} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><span style={{ fontSize: 18, fontWeight: 700, color: on ? th.text.accent : th.text.secondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: mdW - 12 }}>{m.name}</span></div>)}
         {monitor("mm" + i, s.x + mdW * 0.26, -mdH, s.z + 4, 58, 36, ci, !!dn && !fz)}
-        {blob("mb" + i, s.x, -mdH + 6, s.z - mdD * 0.62, i + 1, ci, false, false, fz ? "sleep" : dn ? "type" : "idle", 0.85, () => props.onMember(on ? null : i))}
+        {(() => { const q = walkTo(m.name, homeOf(m.name)!, homeOf); return <>
+          {blob("mb" + i, q.x, q.y, q.z, i + 1, ci, false, false, fz ? "sleep" : q.w > 0 ? "idle" : dn ? "type" : "idle", 0.85, () => props.onMember(on ? null : i))}
+          {q.tk && speech("ms" + i, q.x, q.y - 132, q.z, q.tk.m, q.tk.k)}
+        </>; })()}
       </div>
     );
   });
@@ -2654,7 +2727,24 @@ function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h:
   const zOp = props.focus ? zk : 1 - zk;
   const zw = Math.min(1180, vp.w - (phone ? 16 : 80)), zh = vp.h - topY - botH - 16;
   const navBtn: any = { font: "inherit", fontSize: 13, fontWeight: 600, padding: phone ? "8px 10px" : "8px 14px", borderRadius: 999, border: `1px solid ${th.border.default}`, background: th.bg.elevated, color: th.text.primary, cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 6px 18px rgba(0,0,0,.3)" };
-  const leadBlob = blob("lb", 0, -ldH + 4, zl - ldD * 0.68, 0, idx % 6, true, open > 0 && !fz, fz ? "sleep" : leadDn || team.tasks.some((x) => x.state === "doing") ? "type" : "idle", 1.05, () => props.onMember(props.member === -1 ? null : -1));
+  const lq = walkTo(team.lead.name, homeOf(team.lead.name)!, homeOf);
+  const leadBlob = <>
+    {blob("lb", lq.x, lq.y, lq.z, 0, idx % 6, true, open > 0 && !fz, fz ? "sleep" : lq.w > 0 ? "idle" : leadDn || team.tasks.some((x) => x.state === "doing") ? "type" : "idle", 1.05, () => props.onMember(props.member === -1 ? null : -1))}
+    {lq.tk && speech("ls", lq.x, lq.y - 150, lq.z + 90, lq.tk.m, lq.tk.k)}
+  </>;
+  // the owner's instruction arrives as a bubble over the lead; a bot from another team walks in through the door to ask something
+  const fromYou = myTalks.find((x) => x.m.from === "You");
+  const visitors = talks.filter((x) => x.m.toTeam === team.id && x.m.team !== team.id).slice(0, 2).map((x, i) => {
+    const w = walkPhase(x.k); const hop = w > 0.001 && w < 0.999 ? Math.abs(Math.sin(t * 11)) * 14 : 0;
+    const vx = G.W * 0.3 * (1 - w) - (170 + i * 120) * w, vz = (D2 - 30) * (1 - w) + (zl + ldD + 130) * w;   // in through the door, up to the front of the lead's desk
+    const oi = TEAMS.findIndex((q) => q.id === x.m.team);
+    return <div key={"vis" + i} style={S3}>
+      {blob("vb" + i, vx, -hop, vz, 20 + i, (oi < 0 ? i + 2 : oi) % 6, false, false, "idle", 0.9, () => {})}
+      {speech("vs" + i, vx, -hop - 128, vz, { ...x.m, to: x.m.to || team.lead.name }, x.k)}
+    </div>;
+  });
+  const theme: RoomTheme | null = fz ? null : themeOf(team);
+  const decor = theme ? roomDecor(theme, { t, W2, D2, HH, portrait, colors: cats, billboard, face, at, S3 }) : null;
   return (
     <div ref={box} dir="ltr" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp} onDoubleClick={() => setOrbit({ yaw: 0, pitch: 0 })}
       style={{ position: "absolute", inset: 0, overflow: "hidden", background: `radial-gradient(ellipse at 50% 40%, #1b1b1d, ${th.bg.base} 75%)`, touchAction: "pan-y", userSelect: dragged.current ? "none" : "auto", zIndex: 4, perspective: P, perspectiveOrigin: `${ox}px ${oy}px` } as any}>
@@ -2662,11 +2752,14 @@ function Room3D(props: { team: Team; idx: number; t: number; vp: { w: number; h:
       <div style={{ ...S3, left: ox, top: oy, transform: `translateZ(${P - R}px) rotateX(${pitch}deg) rotateY(${-yaw}deg) ${at(-T.x, -T.y, -T.z)}` }}>
         {floor}{backWall}{leftWall}{rightWall}
         {rug}{lamp}
-        {plant("pl1", -W2 + 60, -D2 + 70, 0.75)}
+        {!theme && plant("pl1", -W2 + 60, -D2 + 70, 0.75)}
+        {decor}
         {plant("pl2", -W2 - 60, D2 - 90, 1.5)}
         {leadBlob}{leadDesk}{tray}{monitor("lm", monX, -ldH, zl + 8, 90, 58, idx % 6, !fz)}{trayBadge}{bubble}
         {stand}
         {desks}
+        {visitors}
+        {fromYou && speech("you", 0, -ldH - 190, zl - ldD * 0.68 + 90, { ...fromYou.m, text: "📣 " + fromYou.m.text, to: undefined }, fromYou.k)}
       </div>
 
       {/* zoomed board */}
@@ -2734,6 +2827,7 @@ function ControlCenterInner() {
   const [inFocus, setInFocus] = useState(false);
   const [hot, setHot] = useState<string | null>(null);
   const [feedOpen, setFeedOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [toast, setToast] = useState<{ msg: string; ok: boolean; t0: number; kind?: "tray" | "batch" | "queued" | "sent" | "failed" | "wait"; err?: string } | null>(null);
@@ -3033,7 +3127,7 @@ function ControlCenterInner() {
     <div style={{ position: "relative", flex: "1 1 auto", minWidth: 0, background: th.bg.subtle, overflow: "hidden", height: campusH, minHeight: 420 }}>
       {!(roomTeam && classic) && (
         <Scene t={t} teams={TEAMS} pos={pos} idxOf={idxOf} alertsOf={alertsOf} openOf={openOf} freshOf={freshOf} focus={room} dim={filter} hot={hot} padR={padR} padB={padB} fitBoxes={fitBoxes}
-          cmd={cmd} view={viewRef} clockLines={clockLines} soonN={soon.length} onPick={(p: ScenePick) => enter(p.team, p.what === "person" ? "person" : (p.what as PanelTab | undefined), p.member)} onHot={setHot} onClock={() => openDrawer("clock")} tip={sceneTip} onFail={() => setGlFail(true)} />
+          cmd={cmd} view={viewRef} chat={CHAT_PLAY} clockLines={clockLines} soonN={soon.length} onPick={(p: ScenePick) => enter(p.team, p.what === "person" ? "person" : (p.what as PanelTab | undefined), p.member)} onHot={setHot} onClock={() => openDrawer("clock")} tip={sceneTip} onFail={() => setGlFail(true)} />
       )}
 
       {/* floating HUD windows: visual right = waiting on you, visual left = in progress */}
@@ -3047,7 +3141,7 @@ function ControlCenterInner() {
       {/* room: 3D close-up + panel (or the classic illustrated room) */}
       {roomTeam && classic && (() => {
         const i = TEAMS.indexOf(roomTeam); const n = TEAMS.length;
-        return <Room3D team={roomTeam} idx={idxOf[roomTeam.id] || 0} t={t} vp={vp} phone={phone} wall={inWall} focus={inFocus} member={pMember} decisions={decisions} fresh={freshMap}
+        return <Room3D team={roomTeam} idx={idxOf[roomTeam.id] || 0} t={t} vp={vp} chat={CHAT_PLAY} phone={phone} wall={inWall} focus={inFocus} member={pMember} decisions={decisions} fresh={freshMap}
           prevName={TEAMS[(i - 1 + n) % n].name} nextName={TEAMS[(i + 1) % n].name} onWall={setInWall} onFocus={setInFocus} onMember={setPMember} onPrev={() => roomStep(-1)} onNext={() => roomStep(1)} onExit={exit}
           onDecide={decide} onSend={send} onSendNow={sendNow} />;
       })()}
@@ -3139,6 +3233,7 @@ function ControlCenterInner() {
               <b>{tick.team.name}</b> <span style={{ color: th.text.tertiary }}>{tick.time}</span> · {tick.text}
             </button>
             <button onClick={() => { setFeedOpen(!feedOpen); setInboxOpen(false); setDrawer(null); }} style={{ font: "inherit", fontSize: 13, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${th.border.default}`, background: feedOpen ? th.fill.accentSubtle : th.bg.subtle, color: th.text.primary, cursor: "pointer", whiteSpace: "nowrap" }}>Full feed</button>
+            <button onClick={() => { setChatOpen(!chatOpen); setFeedOpen(false); setInboxOpen(false); setDrawer(null); }} title="Watch the bots talk and give them instructions" style={{ font: "inherit", fontSize: 13, fontWeight: 600, padding: "6px 12px", borderRadius: 999, border: `1px solid ${th.border.default}`, background: chatOpen ? th.fill.accentSubtle : th.bg.subtle, color: th.text.primary, cursor: "pointer", whiteSpace: "nowrap" }}>💬 Bot chat</button>
           </div>
         </div>
       )}
@@ -3213,6 +3308,17 @@ function ControlCenterInner() {
           </button>
         ))}
       </div>
+
+      {/* bot chat: the live bot-to-bot conversation, plus instructions */}
+      {chatOpen && (
+        <BotChat teams={TEAMS} chat={CHAT} colorOf={(id) => cats[(idxOf[id] || 0) % cats.length]} team={room} phone={phone} demo={!!DEMO} th={th}
+          onInstruct={(id, text) => { const tm = TEAMS.find((x) => x.id === id); if (tm) sendNow(`Instruction — ${tm.name}: ${text}`); }}
+          onClose={() => setChatOpen(false)} onOpenTeam={(id) => enter(id)} />
+      )}
+      {roomTeam && !chatOpen && (
+        <button onClick={() => setChatOpen(true)} title="Watch the bots talk and give them instructions"
+          style={{ position: "absolute", zIndex: 8, insetInlineEnd: 14, bottom: phone ? 96 : 14, font: "inherit", fontSize: 13, fontWeight: 700, padding: "9px 14px", borderRadius: 999, border: `1px solid ${th.border.default}`, background: th.bg.elevated, color: th.text.primary, cursor: "pointer", boxShadow: "0 6px 18px rgba(0,0,0,.35)" }}>💬 Bot chat</button>
+      )}
 
       {/* inbox drawer: all papers */}
       <div style={{ position: "absolute", top: 64, insetInlineStart: 14, insetInlineEnd: 14, maxHeight: "calc(100% - 150px)", overflowY: "auto", zIndex: 8, padding: "8px 6px 16px", opacity: inboxOpen ? 1 : 0, transform: inboxOpen ? "translateY(0)" : "translateY(-16px)", pointerEvents: inboxOpen ? "auto" : "none", transition: "opacity 250ms, transform 250ms" }}>
@@ -3437,7 +3543,7 @@ export default function ControlCenter(props: { initial: DataShape; demo?: DemoAp
     if (left > 0) await new Promise((r) => setTimeout(r, left));
     busyRef.current = false; setBusy(false);
   };
-  UPDATED = data.UPDATED; USAGE = data.USAGE; TEAMS = data.TEAMS;
+  UPDATED = data.UPDATED; USAGE = data.USAGE; TEAMS = data.TEAMS; CHAT = validChat((data as any).CHAT); CHAT_PLAY = chatPlayback(CHAT, !!demo);
   RF = { busy, at, result, reqAt, polling: pollUntil > 0, refresh, note };
   DEMO = demo;
   if (!mounted) return <div style={{ height: "100dvh", background: "#141414" }} />;

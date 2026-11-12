@@ -577,6 +577,10 @@ B) otherwise text starts "N request(s) from the control center:" followed by num
      - "What's the status? — <team>: <task or bot>": ask the lead. When the answer arrives, mark the event
        and schedule the one-off timer (section 7.2); the next full refresh shows it.
      - "Note to the team lead — <team>: …": forward the note as written.
+     - "Instruction — <team>: …" (from the page's Bot chat box): forward it to that team's lead as the user's
+       instruction, word for word. It follows the same confirm-first rule as every other line: if it asks to publish,
+       send outside, spend or delete, confirm in the private chat first. Record what the bots then say to each other
+       about it in `CHAT` (section 11) on the next full refresh.
      - "Pause task / Resume / Run now — <team>: <owner> / <routine> [<id>]": if the routine is yours, do it with
        UpdateRoutine; otherwise forward it to the owner's lead. ("Run now" of a routine that publishes or sends outside
        is a confirm-first line.)
@@ -747,9 +751,25 @@ type DataShape = {
     routines?: { id: string; owner: string; name: string; schedule: string; state: "on" | "paused" | "unknown";
                  lastRun?: string; lastResult?: "ok" | "fail"; next?: string; perWeek?: number; note?: string }[];
     unscanned?: string[]; botUsage?: { owner: string; pct: number }[];
+    theme?: "money" | "travel" | "nfl" | "nba" | "none";    // room decor; when absent, inferred from the team's id and name
+  }[];
+  CHAT?: {                                                  // optional: bot-to-bot messages, oldest first, keep the last ~60
+    id: string;                                             // stable and unique (the page replays each id once)
+    at: string | number;                                    // ISO time with offset, or epoch ms
+    team: string;                                           // TEAMS[].id of the speaker
+    from: string;                                           // exact bot name; "You" for the user's own instruction
+    to?: string; toTeam?: string;                           // listener's bot name; toTeam = TEAMS[].id when it is another team
+    text: string;                                           // one or two short sentences (max 280 characters)
   }[];
 };
 ```
+
+- `CHAT` is what the page's **Bot chat** window lists and what the bots act out: the speaker walks to the listener's desk
+  (or a courier runs to the other team's room) with a speech bubble. Take it only from messages you can already read in
+  the team chats and transcripts: summarise each exchange in a sentence, never paste a full message, and leave out
+  anything private. No `CHAT` key means no chat window content; nothing else changes.
+- Room themes: a team whose id or name mentions money / income, travel / trips, NFL / football or NBA / basketball gets
+  matching decor automatically. Set `theme` to choose one explicitly, or `"none"` for the plain office.
 
 - `next` on a routine is an ISO time with offset so the page can count down.
 - Empty valid document: `{"UPDATED":"","USAGE":{"weeklyPct":0,"reset":"","onDemandPct":0,"period":"","byTeam":[],"topBots":[]},"TEAMS":[]}`.
