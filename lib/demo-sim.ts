@@ -14,7 +14,8 @@ type Op =
   | { at: number; team: string; k: "rt"; id: string; patch: Record<string, any> }
   | { at: number; team: string; k: "rtDel"; id: string }
   | { at: number; team: string; k: "upd" }
-  | { at: number; team: string; k: "use"; d: number };
+  | { at: number; team: string; k: "use"; d: number }
+  | { at: number; team: string; k: "chat"; from: string; to?: string; toTeam?: string; text: string };
 type State = { start: number; ops: Op[]; round: number };
 export type DemoApi = {
   snapshot: () => any;
@@ -62,6 +63,39 @@ const ANSWERS = [
   "we tried it on a small group first and the results were good. Details are in the room.",
 ];
 
+// bots talking to each other when nothing else is going on: one short exchange every AMBIENT_MS, derived from the clock
+const AMBIENT_MS = 21000;
+const AMBIENT: [string, string][] = [
+  ["Do you have the latest numbers?", "Yes, just posted them to the board."],
+  ["Can you double-check my draft before it goes up?", "Reading it now. Two small notes coming."],
+  ["Anything blocking you?", "No, on track. Done within the hour."],
+  ["I found something you should see.", "Send it over, I'll look right away."],
+  ["Who has the newest version?", "I do. Sharing it with the team now."],
+  ["Need a hand with that?", "Yes please, take the second half."],
+];
+const TOPIC: Record<string, [string, string][]> = {
+  nfl: [["How many yards has that defense given up to tight ends?", "Seventy-plus in five of the last eight."], ["Any change on the injury report?", "One starter moved to questionable."]],
+  nba: [["Who picks up the minutes if he sits tonight?", "The backup guard: about eight more."], ["Is that a back-to-back for them?", "Yes, second night, on the road."]],
+  travel: [["Did the Lisbon fare move?", "Dropped again overnight. Holding it."], ["Is the hotel near the station?", "Six minutes on foot."]],
+  money: [["How did this week's income land?", "Up on all three streams."], ["Which idea tested better?", "The sponsorships, by a clear margin."]],
+};
+function ambientChat(teams: any[], now: number) {
+  const act = teams.filter((t: any) => t.status !== "frozen" && t.members.length);
+  if (!act.length) return [];
+  const out: any[] = [];
+  const b1 = Math.floor((now + 95000) / AMBIENT_MS);
+  for (let b = b1 - 22; b <= b1; b++) {
+    const t = act[hash("a" + b) % act.length];
+    const names = [t.lead.name, ...t.members.map((m: any) => m.name)];
+    const i = hash("f" + b) % names.length; let j = hash("t" + b) % names.length; if (j === i) j = (j + 1) % names.length;
+    const pool = (TOPIC[t.id] || []).concat(AMBIENT); const [q, a] = pool[hash("l" + b) % pool.length];
+    const at = b * AMBIENT_MS;
+    out.push({ id: `amb${b}q`, at, team: t.id, from: names[i], to: names[j], text: q });
+    out.push({ id: `amb${b}a`, at: at + 7000, team: t.id, from: names[j], to: names[i], text: a });
+  }
+  return out;
+}
+
 export function createDemoSim(): DemoApi {
   let st: State = { start: Date.now(), ops: [], round: 0 };
   try { const v = typeof sessionStorage !== "undefined" && sessionStorage.getItem(KEY); if (v) { const j = JSON.parse(v); if (j && Array.isArray(j.ops)) st = j; } } catch (e) {}
@@ -95,6 +129,9 @@ export function createDemoSim(): DemoApi {
     }
     d.TEAMS.forEach((t: any) => { t.activity = t.activity.map((a: any, i: number) => ({ a, i })).sort((x: any, y: any) => key(y.a.time) - key(x.a.time) || x.i - y.i).map((x: any) => x.a); });
     d.UPDATED = updTime(upd);
+    // bot chat: instruction scripts (including lines still to come, so the scene can play them on time) plus ambient chatter
+    const scripted = st.ops.filter((o) => o.k === "chat").map((o: any, i) => ({ id: `ins${o.at}-${i}`, at: o.at, team: o.team, from: o.from, to: o.to, toTeam: o.toTeam, text: o.text }));
+    d.CHAT = ambientChat(d.TEAMS, now).filter((m) => !scripted.some((x) => Math.abs(x.at - m.at) < 9000)).concat(scripted).sort((a: any, b: any) => a.at - b.at).slice(-160);
     return d;
   };
 
@@ -117,7 +154,30 @@ export function createDemoSim(): DemoApi {
       const what = item ? item.what : body.replace(/\s*\[[^\]]*\].*$/, "");
       const s = short(what); const s0 = s;
       const meTask = team.tasks.find((k: any) => k.owner === "Me" && k.state !== "done" && words(k.text).filter((w) => words(s0).includes(w)).length >= 1);
-      if (kind === "Approved" || kind === "Rejected") {
+      if (kind === "Instruction") {
+        // the owner's instruction: the lead hands it out, the bots talk it through, another team is asked, the lead reports back
+        const names = team.members.map((m: any) => m.name);
+        const m1 = names[0] || lead, m2 = names[1] || names[0] || lead;
+        const others = cur.TEAMS.filter((x: any) => x.id !== T && x.status !== "frozen");
+        const O = others.length ? others[hash(line) % others.length] : null;
+        const job = clip(body.replace(/[.\s]+$/, ""), 90);
+        const say = (dt: number, from: string, text: string, to?: string, toTeam?: string, tid: string = T) => ops.push({ at: t0 + dt, team: tid, k: "chat", from, to, toTeam, text });
+        say(400, "You", job, lead);
+        say(4500, lead, `New instruction from the owner: ${clip(job, 60)}. ${m1}, take the first pass.`, m1);
+        ops.push({ at: t0 + 4500, team: T, k: "act", text: `${lead} got your instruction: ${clip(job, 70)}` });
+        ops.push({ at: t0 + 4500, team: T, k: "task", text: clip(job, 60), state: "doing", owner: m1 });
+        say(11500, m1, "On it. I need the latest numbers to do this properly.", m2);
+        if (m2 !== m1) say(18500, m2, "Here they are. I checked them this morning.", m1);
+        if (O) {
+          say(25500, lead, `Quick question for ${O.name}: anything on your side we should account for?`, O.lead.name, O.id);
+          say(33000, O.lead.name, "One thing: check the timing with us before it goes out. Otherwise you're clear.", lead, T, O.id);
+          ops.push({ at: t0 + 33000, team: O.id, k: "act", text: `${O.lead.name} answered a question from ${team.name}` });
+        }
+        say(40000, m1, "First pass is done. Ready for review.", lead);
+        say(47000, lead, `Done: ${clip(job, 60)}. It's on the board for you to check.`);
+        ops.push({ at: t0 + 47000, team: T, k: "task", text: clip(job, 60), state: "done", owner: m1 });
+        ops.push({ at: t0 + 47000, team: T, k: "act", text: `${lead}: finished your instruction: ${clip(job, 70)}` });
+      } else if (kind === "Approved" || kind === "Rejected") {
         const ok = kind === "Approved";
         ops.push({ at: t0 + 1500, team: T, k: "act", text: `Main bot passed your ${ok ? "approval" : "rejection"} to ${lead}` });
         ops.push({ at: t0 + 4500, team: T, k: "drop", id });

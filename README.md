@@ -11,7 +11,8 @@ see who is working on what, what is waiting for your approval, which scheduled t
 much of the weekly usage each team takes, and you can send commands back with one click.
 
 **Built with Grok Bot.** The real version runs privately and is fed by the owner's main Grok Bot, which
-coordinates 9 teams of bots. This repo is a **demo with invented data**: the teams, agents, tasks,
+coordinates 9 teams of bots. This repo is a **demo with invented data** (Marketing, Product, NFL, NBA, Travel
+and Money Maker teams): the teams, agents, tasks,
 approvals and numbers are all made up, and no button contacts anything.
 
 ## Why it's built this way (safety model)
@@ -55,6 +56,33 @@ A few of them:
 | ![Sent](screenshots/states/14-sent-to-bot-toast_1440x900.png) | ![New](screenshots/states/07-hud-whats-new_1440x900.png) |
 
 The full list with triggers is in [`skill/SKILL.md`](skill/SKILL.md#ui-states-reference-match-these-exactly).
+
+## Themed rooms and live bot chat
+
+| Football room | Basketball room |
+|---|---|
+| ![NFL room](screenshots/themes/room_nfl.png) | ![NBA room](screenshots/themes/room_nba.png) |
+| **Travel room** | **Money room** |
+| ![Travel room](screenshots/themes/room_travel.png) | ![Money room](screenshots/themes/room_money.png) |
+| **Give an instruction, watch them work it out** | **Campus with a message being carried between rooms** |
+| ![Bot chat](screenshots/themes/bot_chat.png) | ![Campus](screenshots/themes/campus_chat.png) |
+
+- **Themed rooms.** A room is decorated for what its team does. Football: a practice field where two mini bots throw the
+  ball back and forth, goalposts, a game-film screen, a jersey rack and a trophy. Basketball: a court with hoops, mini bots
+  passing the ball, game film, jerseys and a trophy. Travel: a spinning globe, country flags, an airplane circling overhead,
+  a toy train looping on the floor and a suitcase. Money: a piggy bank with coins dropping in, money bags, coin stacks and
+  income charts. The theme is picked from the team's id or name (`nfl`, `nba`, `travel`, `money`...), or set `theme` on the
+  team in the data. Code: `lib/themes.ts`, `lib/theme3d.ts` (campus), `components/RoomDecor.tsx` (inside a room).
+- **Bot chat.** The **💬 Bot chat** button (campus bar, or bottom right inside a room) opens a live feed of what the bots
+  say to each other, with a box to give any team an instruction. While a message plays, the speaker gets up, walks to the
+  listener's desk and says it in a speech bubble; a message for another team is carried across the campus by a courier,
+  and inside a room you see the visitor walk in through the door.
+  - **Demo:** the conversation is simulated in the browser (`lib/demo-sim.ts`). Nothing is sent anywhere.
+  - **Real app:** your instruction goes to your main bot through the same signed webhook as every other button
+    (`Instruction — <team>: …`), with the same confirm-first rule. The feed shows the optional `CHAT` list your main bot
+    publishes with each data refresh, so it is as live as your refreshes: new messages are replayed one after another when
+    they arrive. Schema and bot instructions: `skill/SKILL.md` sections 8 and 11.
+- The WebGL campus and the room view have themes and walking bots. The SVG fallback (no WebGL) keeps the plain rooms.
 
 ## Features
 

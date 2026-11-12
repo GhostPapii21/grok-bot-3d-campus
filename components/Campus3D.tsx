@@ -6,6 +6,9 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { PALETTE } from "../lib/theme";
 import { roomGeo, agentsOf, W3, ctrlFor, qpt, PLAZA, TREES, campusGrow } from "./ControlCenter";
+import { themeOf } from "../lib/themes";
+import { buildDecor, type Decor } from "../lib/theme3d";
+import { activeTalks, walkPhase } from "../lib/chat";
 
 const P = PALETTE;
 type Pick = { team: string; what?: string; member?: number };
@@ -37,7 +40,7 @@ export default function Campus3D(props: any) {
 
   // data signature: rebuild rooms only when something visible in 3D changes
   const teams: any[] = props.teams;
-  const sig = JSON.stringify(teams.map((t) => [t.id, t.status, t.members.length, t.tasks.map((k: any) => k.state + (k.owner || "")).join(","), (props.openOf || {})[t.id] || 0, t.activity.length ? t.activity[0].text : "", t.goal ? t.goal.current : null]));
+  const sig = JSON.stringify(teams.map((t) => [t.id, themeOf(t), t.status, t.members.length, t.tasks.map((k: any) => k.state + (k.owner || "")).join(","), (props.openOf || {})[t.id] || 0, t.activity.length ? t.activity[0].text : "", t.goal ? t.goal.current : null]));
 
   useEffect(() => {
     const el = host.current; if (!el) return;
@@ -319,12 +322,17 @@ export default function Campus3D(props: any) {
           const A = makeAgent(a, idx * 7 + k); A.g.position.set(a.x, a.state === "sleep" ? 0.2 : 0.24, a.z - 0.1); A.g.scale.setScalar(1.12); G.add(A.g);
           G.add(mesh(geo.cyl, mats.dark, 0.13, 0.14, 0.13, a.x, 0.17, a.z - 0.1));
           A.g.traverse((o) => { if ((o as any).isMesh) { o.userData.pick = { team: tm.id, what: "person", member: a.i }; pickables.push(o); } });
+          (A as any).home = { x: A.g.position.x, y: A.g.position.y, z: A.g.position.z };
           return A;
         });
-        rooms.push({ tm, G, g, walls, onWall, edge, freshRing, lampMat, glowMat, lamp, glow, cover, ags, screens, idx, fz, anchor: new THREE.Vector3(C.x, H + 0.62, C.z - g.d / 2) });
+        // themed decor (money, travel, football, basketball)
+        const theme = fz ? null : themeOf(tm);
+        const decor: Decor | null = theme ? buildDecor(theme, { mesh, geo, own, canvasTex, blobColor: (i: number) => P.blobs[(idx + i) % 6], wallH: H }, G, g) : null;
+        rooms.push({ tm, G, g, walls, onWall, decor, edge, freshRing, lampMat, glowMat, lamp, glow, cover, ags, screens, idx, fz, anchor: new THREE.Vector3(C.x, H + 0.62, C.z - g.d / 2) });
       });
     };
     build();
+    const couriers: any[] = [0, 1, 2].map((i) => { const c: any = makeAgent({ ci: (i * 2 + 1) % 6, state: "walk", lead: false, alert: false }, 40 + i); c.g.scale.setScalar(0.95); c.g.visible = false; scene.add(c.g); return c; });
 
     // ---- camera + controls ----
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -490,6 +498,7 @@ export default function Campus3D(props: any) {
       trees.forEach((g, i) => { g.rotation.z = Math.sin(t * 0.8 + i) * 0.025; });
       dashTex.offset.x = -t * 0.25;
       // rooms
+      const talks = activeTalks(p.chat, Date.now());
       const camXZ = new THREE.Vector2(camera.position.x, camera.position.z);
       rooms.forEach((R) => {
         const C = R.G.position;
@@ -517,11 +526,32 @@ export default function Campus3D(props: any) {
         R.lampMat.color.set(col); R.glowMat.color.set(col); const pulse = R.fz ? 0.25 : 0.45 + 0.12 * Math.sin(t * 3 + R.idx) + (al.length ? 0.2 * Math.max(0, Math.sin(t * 7)) : 0); R.glow.scale.setScalar(pulse * 0.75);
         R.screens.forEach((s: THREE.Mesh, k: number) => { (s.material as THREE.MeshBasicMaterial).opacity = R.fz ? 0.5 : 0.65 + 0.25 * Math.sin(t * 3 + k * 1.3 + R.idx); });
         const tv = (R.G.userData as any).tv; if (tv && tv.n > 1) { const k = Math.floor((t + R.idx * 1.3) / 4.5); if (k !== tv.k) { tv.k = k; tv.drawTv(k); } }
+        if (R.decor) {
+          R.decor.update(t);
+          R.decor.onWall.forEach((o: THREE.Object3D) => { o.visible = o.position.x < 0 ? !(-dx > 0) : !(dx > 0); });   // hide what hangs on a wall that is cut away
+        }
+        // bots acting out a chat message: the speaker walks over to the listener (or to the door for another team)
+        const roomTalks = talks.filter((x) => x.m.team === R.tm.id);
+        R.ags.forEach((A: any) => {
+          const h = A.home; if (!h || A.a.state === "sleep") return;
+          const tk = roomTalks.find((x) => x.m.from === A.a.name);
+          let w = 0, tx = h.x, tz = h.z;
+          if (tk) {
+            const other = tk.m.toTeam && tk.m.toTeam !== R.tm.id ? null : R.ags.find((B: any) => B !== A && B.a.name === (tk.m.to || R.tm.lead.name));
+            if (tk.m.toTeam && tk.m.toTeam !== R.tm.id) { tx = 0; tz = R.g.d / 2 - 0.3; w = walkPhase(tk.k); }
+            else if (other && other.home) { tx = other.home.x + (h.x <= other.home.x ? -0.32 : 0.32); tz = other.home.z + 0.78; w = walkPhase(tk.k); }   // in front of the listener's desk
+          }
+          const nx = h.x + (tx - h.x) * w, nz = h.z + (tz - h.z) * w;
+          A.walking = w > 0.001; A.moving = A.walking && w < 0.999;
+          A.g.position.x += (nx - A.g.position.x) * 0.35; A.g.position.z += (nz - A.g.position.z) * 0.35;
+          A.g.position.y = h.y + (A.moving ? Math.abs(Math.sin(t * 11 + A.seed)) * 0.05 : 0);
+          if (A.walking) A.faceTo = Math.atan2(tx - h.x, tz - h.z);
+        });
         // agents
         R.ags.forEach((A: any) => {
           const a = A.a; const sd = A.seed;
           tmpV.copy(camera.position); R.G.worldToLocal(tmpV);
-          const want = Math.atan2(tmpV.x - A.g.position.x, tmpV.z - A.g.position.z);
+          const want = A.walking ? A.faceTo : Math.atan2(tmpV.x - A.g.position.x, tmpV.z - A.g.position.z);
           let dy = want - A.g.rotation.y; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI; A.g.rotation.y += dy * 0.08;
           if (a.state === "sleep") { A.body.scale.set(1.04, 0.86 + 0.02 * Math.sin(t * 0.8 + sd), 1.04); A.zs.forEach((z: THREE.Sprite, k: number) => { const ph = (t * 0.45 + k / 3 + sd * 0.1) % 1; z.position.set(0.14 + ph * 0.18, A.topY + 0.05 + ph * 0.4, 0); (z.material as THREE.SpriteMaterial).opacity = 1 - ph; }); return; }
           const typing = a.state === "type";
@@ -546,7 +576,36 @@ export default function Campus3D(props: any) {
         w.feet.forEach((ft: THREE.Mesh, j: number) => { ft.position.z = moving ? Math.sin(t * 12 + j * Math.PI) * 0.05 : 0; });
         const bl = ((t + w.seed * 0.7) % 4.2) < 0.12; w.eL.scale.y = w.eR.scale.y = bl ? 0.12 : 1;
       });
+      // couriers: a message for another team is carried from one room's door to the other's
+      const cross = talks.filter((x) => x.m.toTeam && x.m.toTeam !== x.m.team).slice(0, couriers.length);
+      couriers.forEach((c: any, i: number) => {
+        const x = cross[i]; const A = x && rooms.find((q) => q.tm.id === x.m.team), B = x && rooms.find((q) => q.tm.id === x.m.toTeam);
+        const k = x ? (x.k - 0.18) / 0.64 : -1;
+        c.g.visible = !!(A && B && k >= 0 && k <= 1);
+        c.talk = c.g.visible ? x : null;
+        if (!c.g.visible || !A || !B) return;
+        const ax = A.G.position.x, az = A.G.position.z + A.g.d / 2 + 0.2, bx = B.G.position.x, bz = B.G.position.z + B.g.d / 2 + 0.2;
+        const e = ease(k);
+        c.g.position.set(ax + (bx - ax) * e, Math.abs(Math.sin(t * 11)) * 0.06, az + (bz - az) * e);
+        c.g.rotation.y = Math.atan2(bx - ax, bz - az);
+        c.feet.forEach((ft: THREE.Mesh, j: number) => { ft.position.z = Math.sin(t * 13 + j * Math.PI) * 0.05; });
+      });
       renderer.render(scene, camera);
+      // speech bubbles follow whoever is talking
+      for (let k = 0; k < 6; k++) {
+        const el = labelEls.current["tk" + k]; if (!el) continue;
+        const x = talks[k];
+        const R0 = x && rooms.find((q) => q.tm.id === x.m.team);
+        if (!x || !R0 || (p.dim && p.dim !== R0.tm.id)) { el.style.opacity = "0"; continue; }
+        const cr = couriers.find((c: any) => c.talk && c.talk.m.id === x.m.id);
+        const sp = R0.ags.find((A: any) => A.a.name === x.m.from) || R0.ags[0];
+        if (cr) { cr.g.getWorldPosition(tmpV); tmpV.y += 0.75; } else if (sp) { sp.g.getWorldPosition(tmpV); tmpV.y += sp.topY * 1.12 + 0.34; } else { tmpV.copy(R0.anchor); }
+        tmpV.project(camera);
+        const rc = renderer.domElement;
+        if (el.dataset.mid !== x.m.id) { el.dataset.mid = x.m.id; el.textContent = (x.m.from === "You" ? "📣 " : "") + (x.m.to ? `→ ${x.m.to}: ` : x.m.toTeam && x.m.toTeam !== x.m.team ? `→ ${(p.teams.find((q: any) => q.id === x.m.toTeam) || {}).name || x.m.toTeam}: ` : "") + x.m.text; }
+        el.style.transform = `translate(${((tmpV.x * 0.5 + 0.5) * rc.clientWidth).toFixed(1)}px, ${((-tmpV.y * 0.5 + 0.5) * rc.clientHeight).toFixed(1)}px) translate(-50%, -100%)`;
+        el.style.opacity = tmpV.z < 1 ? String(Math.min(1, x.k / 0.08, (1 - x.k) / 0.08)) : "0";
+      }
       // labels follow their rooms
       const r = renderer.domElement;
       rooms.forEach((R) => {
@@ -637,7 +696,10 @@ export default function Campus3D(props: any) {
             </div>
           ));
         })()}
-        <div ref={(e) => { labelEls.current["__clock"] = e; }} style={{ position: "absolute", left: 0, top: 0, opacity: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, transition: "opacity 300ms" }}>
+        {[0, 1, 2, 3, 4, 5].map((k) => (
+          <div key={"tk" + k} ref={(e) => { labelEls.current["tk" + k] = e; }} style={{ position: "absolute", left: 0, top: 0, opacity: 0, maxWidth: 230, padding: "6px 11px", borderRadius: 14, borderEndStartRadius: 4, background: "#ffffff", color: "#111111", fontSize: 12.5, fontWeight: 600, lineHeight: "16px", boxShadow: "0 6px 18px rgba(0,0,0,.45)", pointerEvents: "none", transition: "opacity 160ms", zIndex: 3, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" } as any} />
+        ))}
+                <div ref={(e) => { labelEls.current["__clock"] = e; }} style={{ position: "absolute", left: 0, top: 0, opacity: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, transition: "opacity 300ms" }}>
           {(props.clockLines || []).slice(0, 3).map((s: string, k: number) => <span key={k} style={{ fontSize: 12, padding: "2px 9px", borderRadius: 999, background: P.card, border: `1px solid ${k === 0 ? P.accent : P.divider}`, color: P.text, whiteSpace: "nowrap" }}>{s}</span>)}
         </div>
       </div>
